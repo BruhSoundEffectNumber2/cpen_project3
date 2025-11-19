@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "rtos.h": "c",
+        "pwmdriver.h": "c"
+    }
+}

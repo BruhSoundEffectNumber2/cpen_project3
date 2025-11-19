@@ -1,39 +1,152 @@
 #include "rtos.h"
+#include "LCD.h"
+#include <stdio.h>
+#include "Keypad.h"
+#include "pwmDriver.h"
 
 #define TIMESLICE 32000 // 2ms
+int32_t mutex;
+int motorSpeed;
+// Add mutex
 
 void Init_LCD_Ports(void);
 void Init_LCD(void);
 void Set_Position(uint32_t POS);
 void Display_Msg(char *Str);
 
-void Set_Motor_Duty(uint8_t percent)
-{
-	if (percent > 100)
-	{
-		percent = 100;
-	}
-
-	PWM1_3_CMPA_R = percent * 2500 - 1;
-}
-
-void LCD_Display()
+void SetMotorSpeed()
 {
 	while (1)
 	{
+		OS_Wait(mutex);
+		MOT34_Speed_Set(motorSpeed);
+		OS_Signal(mutex);
 	}
 }
 
-void LED_Change()
+void InputControl()
 {
+	unsigned char current = ' ';
+	unsigned char previous = ' ';
+	char dir = ' ';
+	int duty = 0;
+	// Read keypad input
+	while (1)
+	{
+
+		current = MatrixKeypad_Scan(&sct); // Implement Matrix scan
+		if (current != previous)
+		{
+			switch (current)
+			{ // Switch case to select speed and output dir
+			case '0':
+				duty = 0;
+				LCD_command(0x01);
+				LCD_data(dir);
+				LCD_command(0x06);
+				LCD_data(current);
+				break;
+			case '1':
+				duty = 600 * 1;
+				LCD_command(0x01);
+				LCD_data(dir);
+				LCD_command(0x06);
+				LCD_data(current);
+				break;
+			case '2':
+				duty = 400 * 2;
+				LCD_command(0x01);
+				LCD_data(dir);
+				LCD_command(0x06);
+				LCD_data(current);
+				;
+				break;
+			case '3':
+				duty = 400 * 3;
+				LCD_command(0x01);
+				LCD_data(dir);
+				LCD_command(0x06);
+				LCD_data(current);
+				;
+				break;
+			case '4':
+				duty = 400 * 4;
+				LCD_command(0x01);
+				LCD_data(dir);
+				LCD_command(0x06);
+				LCD_data(current);
+				break;
+			case '5':
+				duty = 400 * 5;
+				LCD_command(0x01);
+				LCD_data(dir);
+				LCD_command(0x06);
+				LCD_data(current);
+				break;
+			case '6':
+				duty = 400 * 6;
+				LCD_command(0x01);
+				LCD_data(dir);
+				LCD_command(0x06);
+				LCD_data(current);
+				break;
+			case '7':
+				duty = 400 * 7;
+				LCD_command(0x01);
+				LCD_data(dir);
+				LCD_command(0x06);
+				LCD_data(current);
+				break;
+			case '8':
+				duty = 400 * 8;
+				LCD_command(0x01);
+				LCD_data(dir);
+				LCD_command(0x06);
+				LCD_data(current);
+				break;
+			case '9':
+				duty = 3999;
+				LCD_command(0x01);
+				LCD_data(dir);
+				LCD_command(0x06);
+				LCD_data(current);
+				break;
+			case 'E':
+				dir = '+';
+				LCD_command(0x02);
+				LCD_data(dir);
+				MOT34_Forward();
+
+				break;
+			case 'F':
+				dir = '-';
+				LCD_command(0x02);
+				LCD_data(dir);
+				MOT34_Reverse();
+
+				break;
+			default:
+				break;
+			}
+			OS_Wait(mutex);
+			motorSpeed = duty;
+			OS_Signal(mutex);
+		}
+	}
 }
 
-void Color_Add()
+void LEDControl()
 {
 }
 
 int main(void)
 {
+	MatrixKeypad_Init();
+	uint16_t period = 4000;
+	uint16_t duty = 0; // Start at zero
+	MOT34_Init(period, duty);
+	LCD_init();
+
 	OS_Init(); // initialize, disable interrupts, 16 MHz
 	OS_FIFO_Init();
 
@@ -72,7 +185,7 @@ int main(void)
 	GPIO_PORTD_DIR_R &= ~0x0F; // PD3-PD0 as inputs
 	GPIO_PORTD_DEN_R |= 0x0F;  // Digital enable
 
-	OS_AddThreads(&LCD_Display, &LED_Change, &Color_Add);
+	OS_AddThreads(&SetMotorSpeed, &LED_Change, &Color_Add);
 	OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
 	return 0;			  // this never executes
 }

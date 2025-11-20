@@ -1,3 +1,5 @@
+#include <cstdio>
+
 #include "rtos.h"
 #include "LCD.h"
 #include <stdio.h>
@@ -5,14 +7,20 @@
 #include "pwmDriver.h"
 
 #define TIMESLICE 32000 // 2ms
-int32_t mutex;
-int motorSpeed;
-// Add mutex
 
 void Init_LCD_Ports(void);
 void Init_LCD(void);
 void Set_Position(uint32_t POS);
 void Display_Msg(char *Str);
+
+uint32_t avgMotorRPM = 0;
+uint32_t targetMotorRPM = 0;
+// Last char needs to be the null terminator
+char currentInput[5];
+
+int32_t mutex;
+int motorSpeed;
+// Add mutex
 
 void SetMotorSpeed()
 {
@@ -135,8 +143,33 @@ void InputControl()
 	}
 }
 
-void LEDControl()
+void LCDControl()
 {
+	char rpmStr[5];
+
+	while (1)
+	{
+		// Clear LCD
+		Set_Position(0x00);
+		Display_Msg("                ");
+		Set_Position(0x40);
+		Display_Msg("                ");
+
+		// Top
+		Set_Position(0x00);
+		Display_Msg("Input RPM: ");
+		Display_Msg(currentInput);
+
+		// Bottom
+		Set_Position(0x40);
+		sprintf(rpmStr, "T: %04d", targetMotorRPM);
+		Display_Msg(rpmStr);
+		sprintf(rpmStr, "C: %04d", avgMotorRPM);
+		Display_Msg(rpmStr);
+
+		// 4hz
+		OS_Sleep(125);
+	}
 }
 
 int main(void)

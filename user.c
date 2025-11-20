@@ -15,12 +15,56 @@ void Display_Msg(char *Str);
 
 uint32_t avgMotorRPM = 0;
 uint32_t targetMotorRPM = 0;
+uint32_t estMotorRPM = 0;
+// Incrimented every 0.1ms for PI controller timing
+uint32_t piCount = 0;
+
+// PI I term
+int32_t I = 0;
+
 // Last char needs to be the null terminator
 char currentInput[5];
 
 int32_t mutex;
 int motorSpeed;
 // Add mutex
+
+void PI_Handler(void)
+{
+	uint32_t kp = 105;	  // Proportional coefficient
+	uint32_t ki = 101;	  // Integral coefficient
+	int32_t iLow = -500;  // Integral minimum
+	int32_t iHigh = 4000; // Integral maximum
+
+	// Every 0.4 ms
+	if (++piCount == 4000)
+	{
+		piCount = 0;
+
+		// Basic PI loop
+		int32_t e = targetMotorRPM - estMotorRPM;
+		int32_t p = kp * e / 20;
+		I += ki * e / 640;
+
+		// Bound I term
+		if (I < iLow)
+			I = iLow;
+		else if (I > iHigh)
+			I = iHigh;
+
+		int32_t U = p + I;
+
+		// Constrain actuator output
+		if (U < 100)
+			U = 100;
+		else if (U > 19900)
+			U = 19900;
+
+		MOT34_Speed_Set(U);
+	}
+
+	TIMER0_ICR_R = 0x01;
+}
 
 void SetMotorSpeed()
 {

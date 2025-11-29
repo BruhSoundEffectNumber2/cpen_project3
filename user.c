@@ -5,7 +5,7 @@
 #include "rtos.h"
 #include "pwmDriver.h"
 #define TIMESLICE 32000 // 2ms
-
+#include <time.h>
 void Read_Key(void);
 void Init_Keypad(void);
 void Init_LCD_Ports(void);
@@ -77,20 +77,15 @@ void InputControl(void)
 {
 	int counter = 0;
 	currentInput[0] = '\0';
-	unsigned char prevKey = 0x00;
+
 	while (1)
 	{
+		Delay1ms(50);
 		Read_Key();
+		uint32_t test = Key_ASCII;
 		unsigned char current = (unsigned char)(Key_ASCII & 0xFF);
-		if(Key_ASCII==0x00)
+		if (current != 0x00)
 		{
-			prevKey = 0x00;
-		}
-
-
-		if (current != 0x00 && current != prevKey)
-		{
-			prevKey = current;
 			Key_ASCII = 0; // consume
 
 			if ((current >= '0' && current <= '9') && counter < 4)
@@ -114,7 +109,7 @@ void InputControl(void)
 				counter = 0;
 				currentInput[0] = '\0';
 			}
-			OS_Sleep(10);
+			//OS_Sleep(10);
 		}
 
 		

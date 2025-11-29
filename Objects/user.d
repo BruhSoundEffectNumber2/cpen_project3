@@ -1,0 +1,14 @@
+.\objects\user.o: user.c
+.\objects\user.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+.\objects\user.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdlib.h
+.\objects\user.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdint.h
+.\objects\user.o: rtos.h
+.\objects\user.o: tm4c123gh6pm_def.h
+.\objects\user.o: pwmDriver.h
+.\objects\user.o: C:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123\TM4c123GH6PM.h
+.\objects\user.o: C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\core_cm4.h
+.\objects\user.o: C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\cmsis_version.h
+.\objects\user.o: C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\cmsis_compiler.h
+.\objects\user.o: C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\cmsis_armcc.h
+.\objects\user.o: C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\mpu_armv7.h
+.\objects\user.o: C:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123\system_TM4C123.h

@@ -8,7 +8,6 @@
 #include "tm4c123gh6pm.h"
 #include "tm4c123gh6pm_def.h"
 
-
 int32_t Current_speed(int32_t Avg_volt){ // This function returns the current
                                            // DC motor RPM given the voltage in mV
   if (Avg_volt<= 1200) {return 0;}

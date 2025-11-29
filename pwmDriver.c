@@ -1,12 +1,10 @@
 #include "pwmDriver.h"
-#include "delay.h"
-
 void MOT34_Init(uint16_t period, uint16_t duty) { 
     SYSCTL->RCGCPWM |= 0x02;  
     SYSCTL->RCGCGPIO |= 0x20; 
     SYSCTL->RCGCGPIO |= 0x02; 
 
-    delayMs(10); 
+    //delayMs(10); 
 
 		SYSCTL->RCC &= ~0x00100000; 
     PWM1->_3_CTL = 0x00; //Disable PWM 

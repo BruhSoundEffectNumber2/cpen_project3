@@ -1,50 +1,44 @@
-#include <cstdio>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
 
 #include "rtos.h"
-#include "LCD.h"
-#include <stdio.h>
-#include "Keypad.h"
 #include "pwmDriver.h"
-#include <stdlib.h>
 #define TIMESLICE 32000 // 2ms
 
+void Read_Key(void);
+void Init_Keypad(void);
 void Init_LCD_Ports(void);
 void Init_LCD(void);
 void Set_Position(uint32_t POS);
 void Display_Msg(char *Str);
+void Delay1ms(uint32_t n);
 
-uint32_t avgMotorRPM = 0;
-uint32_t targetMotorRPM = 0;
-uint32_t estMotorRPM = 0;
-// Incrimented every 0.1ms for PI controller timing
-uint32_t piCount = 0;
+volatile uint32_t Key_ASCII = 0;
+volatile uint32_t avgMotorRPM = 0;
+volatile uint32_t targetMotorRPM = 0;
+volatile uint32_t estMotorRPM = 0;
+volatile uint32_t piCount = 0;
 
-// PI I term
 int32_t I = 0;
+int32_t mutex = 1;			
+char currentInput[5] = {0}; 
 
-// Last char needs to be the null terminator
-char currentInput[5];
-
-// Add mutex
 
 void PI_Handler(void)
 {
-	uint32_t kp = 105;	  // Proportional coefficient
-	uint32_t ki = 101;	  // Integral coefficient
-	int32_t iLow = -500;  // Integral minimum
-	int32_t iHigh = 4000; // Integral maximum
+	uint32_t kp = 105;
+	uint32_t ki = 101;
+	int32_t iLow = -500;
+	int32_t iHigh = 4000;
 
-	// Every 0.4 ms
 	if (++piCount == 4000)
 	{
 		piCount = 0;
+		int32_t e = (int32_t)targetMotorRPM - (int32_t)estMotorRPM;
+		int32_t p = (int32_t)(kp * e / 20);
+		I += (int32_t)(ki * e / 640);
 
-		// Basic PI loop
-		int32_t e = targetMotorRPM - estMotorRPM;
-		int32_t p = kp * e / 20;
-		I += ki * e / 640;
-
-		// Bound I term
 		if (I < iLow)
 			I = iLow;
 		else if (I > iHigh)
@@ -52,143 +46,129 @@ void PI_Handler(void)
 
 		int32_t U = p + I;
 
-		// Constrain actuator output
 		if (U < 100)
 			U = 100;
 		else if (U > 19900)
 			U = 19900;
 
-		MOT34_Speed_Set(U);
+		MOT34_Speed_Set((uint32_t)U);
 	}
 
-	TIMER0_ICR_R = 0x01;
+	TIMER0_ICR_R = 0x01; 
 }
 
-void SetMotorSpeed()
+void SetMotorSpeed(void)
 {
 	while (1)
 	{
-		// OS_Wait(mutex);
-		// MOT34_Speed_Set(targetMotorRPM);
-		// OS_Signal(mutex);
+		uint32_t cmd;
+
+		//OS_Wait(&mutex);
+		cmd = targetMotorRPM;
+		//OS_Signal(&mutex);
+
+		//MOT34_Speed_Set(cmd);
+
+		//OS_Sleep(5); // don’t spam the driver
 	}
 }
 
-void InputControl()
+void InputControl(void)
 {
-	unsigned char current = ' ';
-	unsigned char previous = ' ';
-	char dir = ' ';
-	int duty = 0;
 	int counter = 0;
-	// Read keypad input
+	currentInput[0] = '\0';
+	unsigned char prevKey = 0x00;
 	while (1)
 	{
-
-		current = Read_Key(&sct); // Implement Matrix scan
-		if (current != 0x00)
+		Read_Key();
+		unsigned char current = (unsigned char)(Key_ASCII & 0xFF);
+		if(Key_ASCII==0x00)
 		{
-			if ((current <= '9' || current >= '0') && counter < 4)
-			{
+			prevKey = 0x00;
+		}
 
-				currentInput[current] = current;
-				counter++;
+
+		if (current != 0x00 && current != prevKey)
+		{
+			prevKey = current;
+			Key_ASCII = 0; // consume
+
+			if ((current >= '0' && current <= '9') && counter < 4)
+			{
+				currentInput[counter++] = (char)current;
+				currentInput[counter] = '\0';
 			}
 			else if (current == '#')
 			{
+				int val = atoi(currentInput);
+
+				OS_Wait(&mutex);
+				targetMotorRPM = (uint32_t)val;
+				OS_Signal(&mutex);
+
 				counter = 0;
-				duty = atoi(currentInput);
-				OS_Wait(mutex);
-				targetMotorRPM = duty;
-				OS_Signal(mutex);
+				currentInput[0] = '\0';
 			}
-			else if(current== 'C')
+			else if (current == 'C')
 			{
-				for(int i=0 i<4; i++)
-				{
-					currentInput[i]='\0';
-				}
-				counter=0;
+				counter = 0;
+				currentInput[0] = '\0';
 			}
+			OS_Sleep(10);
 		}
+
+		
 	}
 }
 
-void LCDControl()
+void LCDControl(void)
 {
-	char rpmStr[5];
-
+	char line1[17];
+	char line2[17];
+	uint32_t t, a;
 	while (1)
 	{
-		// Clear LCD
+		
+		
+		
+
+		OS_Wait(&mutex);
+		t = targetMotorRPM;
+		a = avgMotorRPM;
+		OS_Signal(&mutex);
+
+		
+
+		snprintf(line1, sizeof(line1), "Input RPM:%-4.4s", currentInput);
+		snprintf(line2, sizeof(line2), "T:%04lu C:%04lu",
+				 (unsigned long)((t > 9999u) ? 9999u : t),
+				 (unsigned long)((a > 9999u) ? 9999u : a));
+
 		Set_Position(0x00);
-		Display_Msg("                ");
+		Display_Msg(line1);
 		Set_Position(0x40);
-		Display_Msg("                ");
+		Display_Msg(line2);
 
-		// Top
-		Set_Position(0x00);
-		Display_Msg("Input RPM: ");
-		Display_Msg(currentInput);
-
-		// Bottom
-		Set_Position(0x40);
-		sprintf(rpmStr, "T: %04d", targetMotorRPM);
-		Display_Msg(rpmStr);
-		sprintf(rpmStr, "C: %04d", avgMotorRPM);
-		Display_Msg(rpmStr);
-
-		// 4hz
-		OS_Sleep(125);
+		// OS_Sleep(1);
 	}
 }
 
 int main(void)
 {
-	uint16_t period = 4000;
-	uint16_t duty = 0; // Start at zero
-	MOT34_Init(period, duty);
-	LCD_init();
-
-	OS_Init(); // initialize, disable interrupts, 16 MHz
+	// *** LCD FIRST (before OS_Init / clock changes) ***
+	OS_Init();
 	OS_FIFO_Init();
-
-	// Enable all GPIO Ports and wait for them to stabilize
-	SYSCTL_RCGCGPIO_R = 0x3F;
-	// Enable PWM Module 1
-	SYSCTL_RCGCPWM_R |= 0x2;
-
-	while ((SYSCTL_RCGCGPIO_R & 0x3F) == 0)
-	{
-	}
-
 	Init_LCD_Ports();
 	Init_LCD();
+	Init_Keypad();
 
-	// // Enable PWM on PF2
-	// GPIO_PORTF_AFSEL_R |= 0x4;
-	// GPIO_PORTF_PCTL_R &= ~(0x4 << 24);
-	// GPIO_PORTF_PCTL_R |= 0x4 << 24;
-	// GPIO_PORTF_AMSEL_R &= ~0x4;
-	// GPIO_PORTF_DEN_R |= 0x4;
+	
+	// Now start the rest of the system
 
-	// // Configure PWM clocking
-	// SYSCTL_RCC_R |= 0x1 << 20;
-	// SYSCTL_RCC_R |= 0x7 << 17;
-	// PWM1_3_CTL_R = 0;
-	// PWM1_3_GENA_R = 0xc8;
-	// PWM1_3_LOAD_R = 2499;
-	// PWM1_3_CMPA_R = 0;
-	// PWM1_3_CTL_R |= 1;
-	// PWM1_ENABLE_R |= 0x40;
+	//MOT34_Init(4000, 0);
 
-	// // TODO: Enable keypad
+	OS_AddThreads(&LCDControl, &SetMotorSpeed, &InputControl);
+	OS_Launch(TIMESLICE);
 
-	// // Initialize Port D switches (PD0-PD3) as inputs
-	// GPIO_PORTD_DIR_R &= ~0x0F; // PD3-PD0 as inputs
-	// GPIO_PORTD_DEN_R |= 0x0F;  // Digital enable
-
-	OS_AddThreads(&SetMotorSpeed, &LED_Change, &Color_Add);
-	OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
-	return 0;			  // this never executes
+	return 0;
 }

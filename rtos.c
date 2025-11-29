@@ -24,7 +24,6 @@
  */
 
 #include "rtos.h"
-
 // All TCBs
 struct TCB tcbs[NUM_THREADS];
 // Pointer to actively running thread
@@ -40,6 +39,10 @@ uint32_t PutI;
 uint32_t GetI;
 uint32_t Fifo[FIFO_SIZE];
 int32_t CurrentSize = 0;
+
+extern void TIMER0A_Handler(void) {
+    //OS_Suspend();   // or whatever you want Timer0A to do
+}
 
 void OS_FIFO_Init(void)
 {

@@ -63,13 +63,13 @@ void SetMotorSpeed(void)
 	{
 		uint32_t cmd;
 
-		//OS_Wait(&mutex);
+		OS_Wait(&mutex);
 		cmd = targetMotorRPM;
-		//OS_Signal(&mutex);
+		OS_Signal(&mutex);
 
-		//MOT34_Speed_Set(cmd);
+		MOT34_Speed_Set(cmd);
 
-		//OS_Sleep(5); // don’t spam the driver
+		OS_Sleep(5); // don’t spam the driver
 	}
 }
 
@@ -160,8 +160,9 @@ int main(void)
 	
 	// Now start the rest of the system
 
-	//MOT34_Init(4000, 0);
-
+	MOT34_Init(4000, 0);
+	MOT34_Forward();
+	
 	OS_AddThreads(&LCDControl, &SetMotorSpeed, &InputControl);
 	OS_Launch(TIMESLICE);
 

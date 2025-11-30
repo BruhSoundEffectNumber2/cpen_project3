@@ -5,6 +5,7 @@
 #include "rtos.h"
 #include "pwmDriver.h"
 #define TIMESLICE 32000 // 2ms
+#include "adcSetup.h"
 #include <time.h>
 void Read_Key(void);
 void Init_Keypad(void);
@@ -156,13 +157,13 @@ int main(void)
 	Init_LCD_Ports();
 	Init_LCD();
 	Init_Keypad();
-
+	adcInit();
 	
 	// Now start the rest of the system
 
 	MOT34_Init(4000, 0);
 	MOT34_Forward();
-	
+
 	OS_AddThreads(&LCDControl, &SetMotorSpeed, &InputControl);
 	OS_Launch(TIMESLICE);
 

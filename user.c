@@ -7,6 +7,10 @@
 #define TIMESLICE 32000 // 2ms
 #include "adcSetup.h"
 #define CPU_HZ 160000000u
+#define MOT34_PERIOD   4000u
+#define PWM_DUTY_MIN   0u
+#define PWM_DUTY_MAX   (MOT34_PERIOD - 1u)
+#define PI_UPDATE_DIV  100u
 
 #include <time.h>
 void Read_Key(void);
@@ -23,7 +27,9 @@ volatile uint32_t avgMotorRPM = 0;
 volatile uint32_t targetMotorRPM = 0;
 volatile uint32_t estMotorRPM = 0;
 volatile uint32_t piCount = 0;
-
+#define ADC_REF_MV       3300u
+#define ADC_MAX_COUNTS   255u   
+#define OVERSPEED_BAND_RPM  10u  
 
 int32_t I = 0;
 int32_t mutex = 1;
@@ -47,56 +53,81 @@ static inline void Delay100us(void)
 
 void PI_Handler(void)
 {
-	uint32_t kp = 105;
-	uint32_t ki = 101;
-	int32_t iLow = -500;
-	int32_t iHigh = 4000;
+    uint32_t kp = 40;
+    uint32_t ki = 10;
+    int32_t iLow = -4000;
+    int32_t iHigh = 4000;
 
-	if (++piCount == 4000)
-	{
-		piCount = 0;
-		int32_t e = (int32_t)targetMotorRPM - (int32_t)estMotorRPM;
-		int32_t p = (int32_t)(kp * e / 20);
-		I += (int32_t)(ki * e / 640);
+    if (++piCount >= PI_UPDATE_DIV)
+    {
+        piCount = 0;
 
-		if (I < iLow)
-			I = iLow;
-		else if (I > iHigh)
-			I = iHigh;
+        uint32_t sp, pv;
+        OS_Wait(&mutex);
+        sp = targetMotorRPM;   // RPM
+        pv = estMotorRPM;      // RPM
+        OS_Signal(&mutex);
 
-		int32_t U = p + I;
+        if (sp == 0u)
+        {
+            I = 0;
+            MOT34_Speed_Set(0);
+        }
+        else if (pv > (sp + OVERSPEED_BAND_RPM))
+        {
+            I = 0;
+            MOT34_Speed_Set(0);
+        }
+        else
+        {
+            int32_t e = (int32_t)sp - (int32_t)pv;
+            int32_t p = (int32_t)(kp * e / 20);
 
-		if (U < 100)
-			U = 100;
-		else if (U > 19900)
-			U = 19900;
+            int32_t dI = (int32_t)(ki * e / 640);
+            int32_t I_next = I + dI;
 
-		MOT34_Speed_Set((uint32_t)U);
-	}
+            if (I_next < iLow) I_next = iLow;
+            else if (I_next > iHigh) I_next = iHigh;
 
-	TIMER0_ICR_R = 0x01;
+            int32_t U_unsat = p + I_next;
+
+            int32_t U = U_unsat;
+            if (U < (int32_t)PWM_DUTY_MIN) U = (int32_t)PWM_DUTY_MIN;
+            else if (U > (int32_t)PWM_DUTY_MAX) U = (int32_t)PWM_DUTY_MAX;
+
+            if (U == U_unsat) I = I_next;
+
+            MOT34_Speed_Set((uint32_t)U);
+        }
+    }
+
+    TIMER0_ICR_R = 0x01;
 }
+
 
 void SetMotorSpeed(void)
 {
-	uint32_t sum = 0;
+    while (1)
+    {
+        uint32_t sum = 0;
 
-	while (1)
-	{
-		sum = 0;
+        for (int i = 0; i < 100; i++)
+        {
+            sum += adcRead();     // 8-bit: 0..255
+            Delay100us();
+        }
 
-		for (int i = 0; i < 100; i++)
-		{
-			sum += adcRead();
-			Delay100us();
-		}
+        uint32_t mv = (sum ) / (100);
+				mv = mv*10;
+        int32_t rpm = Current_speed((int32_t)mv);
+        if (rpm < 0) rpm = 0;
 
-		avgMotorRPM = sum / 100;
-
-		estMotorRPM = Current_speed(avgMotorRPM * 1000);
-	}
+        OS_Wait(&mutex);
+        avgMotorRPM = (uint32_t)rpm*5;   // display RPM
+        estMotorRPM = (uint32_t)rpm;   // PI feedback RPM
+        OS_Signal(&mutex);
+    }
 }
-
 void InputControl(void)
 {
 	int counter = 0;

@@ -1,0 +1,952 @@
+
+
+
+ARM Macro Assembler    Page 1 
+
+
+    1 00000000 400FE608 
+                       SYSCTL_RCGCGPIO_R
+                               EQU              0x400FE608
+    2 00000000 400073FC 
+                       GPIO_PORTD_DATA_R
+                               EQU              0x400073FC
+    3 00000000 40007400 
+                       GPIO_PORTD_DIR_R
+                               EQU              0x40007400
+    4 00000000 4000751C 
+                       GPIO_PORTD_DEN_R
+                               EQU              0x4000751C
+    5 00000000 40004400 
+                       GPIO_PORTA_DIR_R
+                               EQU              0x40004400
+    6 00000000 400043FC 
+                       GPIO_PORTA_DATA_R
+                               EQU              0x400043FC
+    7 00000000 4000451C 
+                       GPIO_PORTA_DEN_R
+                               EQU              0x4000451C
+    8 00000000 40006400 
+                       GPIO_PORTC_DIR_R
+                               EQU              0x40006400
+    9 00000000 400063FC 
+                       GPIO_PORTC_DATA_R
+                               EQU              0x400063FC
+   10 00000000 4000651C 
+                       GPIO_PORTC_DEN_R
+                               EQU              0x4000651C
+   11 00000000         
+   12 00000000         ;NUM_POS1    EQU  0x0D
+   13 00000000         ;NUM_POS2    EQU  (NUM_POS1+1)
+   14 00000000         
+   15 00000000                 AREA             RAMData, DATA, READWRITE, ALIGN
+=2
+   16 00000000 00000000 
+                       RFlag   DCD              0           ; read flag
+   17 00000004 00000000 
+                       Key     DCD              0           ; key read from Por
+                                                            t A
+   18 00000008         
+   19 00000008                 THUMB
+   20 00000008                 AREA             |.text|, CODE, READONLY, ALIGN=
+2
+   21 00000000         
+   22 00000000                 IMPORT           Delay1ms
+   23 00000000                 IMPORT           Set_Position
+   24 00000000                 IMPORT           Display_Char
+   25 00000000                 IMPORT           Key_ASCII
+   26 00000000         
+   27 00000000                 EXPORT           Read_Key    ; This function ret
+                                                            urns the ASCII of a
+                                                            n input key press
+   28 00000000                 EXPORT           Init_Keypad
+   29 00000000         
+   30 00000000                 EXPORT           Scan_Keypad
+   31 00000000         
+   32 00000000         ; Subroutine Read_Key- Reads a two-digit BCD from the ke
+
+
+
+ARM Macro Assembler    Page 2 
+
+
+                       ypad and stores
+   33 00000000         ; the binary values of input keys in Xten and Xunit loca
+                       tions
+   34 00000000         Read_Key
+   35 00000000 B502            PUSH             {LR, R1}
+   36 00000002 F7FF FFFE       BL               Scan_Keypad ; read the first di
+                                                            git
+   37 00000006         
+   38 00000006 482A            LDR              R0, =Key_ASCII ;
+   39 00000008 6801            LDR              R1, [R0]
+   40 0000000A E8BD 4002       POP              {LR, R1}
+   41 0000000E 4770            BX               LR
+   42 00000010         
+   43 00000010         
+   44 00000010         ; Initialize Keypad subroutine
+   45 00000010         Init_Keypad
+   46 00000010         ; Port A is already initialized output by LCD port intia
+                       zlization
+   47 00000010         ; Here we do Port D only 
+   48 00000010 B503            PUSH             {LR, R1, R0}
+   49 00000012 4828            LDR              R0, =SYSCTL_RCGCGPIO_R ; Sendin
+                                                            g a clock to Port D
+                                                            
+   50 00000014 6801            LDR              R1, [R0]
+   51 00000016 F041 0108       ORR              R1, #0x08
+   52 0000001A 6001            STR              R1, [R0]
+   53 0000001C BF00            NOP
+   54 0000001E BF00            NOP
+   55 00000020 4825            LDR              R0, =GPIO_PORTD_DIR_R ; Lowest 
+                                                            nibble of Port D is
+                                                             input
+   56 00000022 6801            LDR              R1, [R0]
+   57 00000024 F021 010F       BIC              R1, #0x0F
+   58 00000028 6001            STR              R1, [R0]
+   59 0000002A         
+   60 0000002A 4824            LDR              R0, =GPIO_PORTD_DEN_R ; Lowest 
+                                                            nibble of Port D is
+                                                             digital
+   61 0000002C 6801            LDR              R1, [R0]
+   62 0000002E F041 010F       ORR              R1, #0x0F
+   63 00000032 6001            STR              R1, [R0]
+   64 00000034 E8BD 4003       POP              {LR, R1, R0}
+   65 00000038 4770            BX               LR
+   66 0000003A         
+   67 0000003A         
+   68 0000003A         ; Subroutine Scan_Keypad - scans the whole keypad for a 
+                       key press
+   69 0000003A         Scan_Keypad
+   70 0000003A B503            PUSH             {LR, R1, R0}
+   71 0000003C         Scan_Keypad_Again
+   72 0000003C F000 F846       BL               Scan_Col_0  ; PA2 = 1, scan the
+                                                             rows
+   73 00000040 481F            LDR              R0, =RFlag
+   74 00000042 6801            LDR              R1, [R0]    ; check the flag
+   75 00000044 2900            CMP              R1, #0x00
+   76 00000046 D112            BNE              End_Scan_Keypad ;
+   77 00000048 F000 F86E       BL               Scan_Col_1  ; PA3 = 1, scan the
+                                                             rows
+   78 0000004C 481C            LDR              R0, =RFlag  ; check the flag
+
+
+
+ARM Macro Assembler    Page 3 
+
+
+   79 0000004E 6801            LDR              R1, [R0]
+   80 00000050 2900            CMP              R1, #0x00
+   81 00000052 D10C            BNE              End_Scan_Keypad ;
+   82 00000054 F000 F896       BL               Scan_Col_2  ; PA4 = 1, scan the
+                                                             rows
+   83 00000058 4819            LDR              R0, =RFlag  ; check the flag
+   84 0000005A 6801            LDR              R1, [R0]
+   85 0000005C 2900            CMP              R1, #0x00
+   86 0000005E D106            BNE              End_Scan_Keypad ;
+   87 00000060 F000 F8BE       BL               Scan_Col_3  ; PA5 = 1, scan the
+                                                             rows
+   88 00000064 4816            LDR              R0, =RFlag  ; check the flag
+   89 00000066 6801            LDR              R1, [R0]
+   90 00000068 2900            CMP              R1, #0x00
+   91 0000006A D100            BNE              End_Scan_Keypad ;
+   92 0000006C E7E6            B                Scan_Keypad_Again ;
+   93 0000006E         End_Scan_Keypad
+   94 0000006E E8BD 4003       POP              {LR, R1, R0}
+   95 00000072 4770            BX               LR
+   96 00000074         
+   97 00000074         ; Subroutine Read_PortD - reads from Port D and implemen
+                       ts debouncing key 
+   98 00000074         ; press
+   99 00000074         Read_PortD
+  100 00000074 B507            PUSH             {R0-R2, LR}
+  101 00000076 4812            LDR              R0, =RFlag  ; reset the RFlag
+  102 00000078 F04F 0100       MOV              R1, #0x00
+  103 0000007C 6001            STR              R1, [R0]
+  104 0000007E 4811            LDR              R0, =GPIO_PORTD_DATA_R 
+                                                            ; read from Port D
+  105 00000080 6801            LDR              R1, [R0]
+  106 00000082 4811            LDR              R0, =Key
+  107 00000084 6001            STR              R1, [R0]    ; save R1 into a te
+                                                            mporary variable
+  108 00000086 F011 010F       ANDS             R1, #0x0F
+  109 0000008A D00E            BEQ              Done_Keypad ; check for a low v
+                                                            alue
+  110 0000008C         
+  111 0000008C F04F 000A       MOV              R0, #10     ; add 10ms delay fo
+                                                            r
+  112 00000090 F7FF FFFE       BL               Delay1ms    ; debouncing the sw
+                                                            itch
+  113 00000094         
+  114 00000094 480B            LDR              R0, =GPIO_PORTD_DATA_R 
+                                                            ; read from Port D
+  115 00000096 6802            LDR              R2, [R0]
+  116 00000098 F002 020F       AND              R2, #0x0F
+  117 0000009C 4291            CMP              R1, R2      ; compare R1 and R2
+                                                            
+  118 0000009E D104            BNE              Done_Keypad ;
+  119 000000A0 4807            LDR              R0, =RFlag  ; set the flag
+  120 000000A2 6801            LDR              R1, [R0]
+  121 000000A4 F101 0101       ADD              R1, #0x01
+  122 000000A8 6001            STR              R1, [R0]
+  123 000000AA         Done_Keypad
+  124 000000AA E8BD 4007       POP              {R0-R2,LR}
+  125 000000AE 4770            BX               LR
+  126 000000B0         
+  127 000000B0 00000000 
+
+
+
+ARM Macro Assembler    Page 4 
+
+
+              400FE608 
+              40007400 
+              4000751C 
+              00000000 
+              400073FC 
+              00000000         LTORG
+  128 000000CC         ; Subroutine Scan_Col_0 - scans column 0
+  129 000000CC         ;*******************************************************
+                       ***********************************
+  130 000000CC         Scan_Col_0
+  131 000000CC B503            PUSH             {LR, R1, R0}
+  132 000000CE F04F 0104       MOV              R1, #0x04   ; PA2 = 1
+  133 000000D2 485A            LDR              R0, =GPIO_PORTA_DATA_R
+  134 000000D4 6001            STR              R1, [R0]
+  135 000000D6         
+  136 000000D6 F7FF FFCD       BL               Read_PortD  ;
+  137 000000DA 4859            LDR              R0, =RFlag  ; check the flag
+  138 000000DC 6801            LDR              R1, [R0]
+  139 000000DE 2900            CMP              R1, #0x00
+  140 000000E0 D01F            BEQ              Scan_Col_0_done ;
+  141 000000E2         
+  142 000000E2 4858            LDR              R0, =Key
+  143 000000E4 6801            LDR              R1, [R0]
+  144 000000E6 F001 010F       AND              R1, #0x0F   ; we care only abou
+                                                            t the low nibble of
+                                                             port 
+  145 000000EA 2901            CMP              R1, #0x01   ; check for Row 0
+  146 000000EC D006            BEQ              Found_key_1
+  147 000000EE 2902            CMP              R1, #0x02   ; check for Row 1
+  148 000000F0 D009            BEQ              Found_key_4
+  149 000000F2 2904            CMP              R1, #0x04   ; check for Row 2
+  150 000000F4 D00C            BEQ              Found_key_7
+  151 000000F6 2908            CMP              R1, #0x08   ; check for Row 3
+  152 000000F8 D00F            BEQ              Found_key_star
+  153 000000FA E012            B                Scan_Col_0_done ;
+  154 000000FC         Found_key_1
+  155 000000FC 4852            LDR              R0, =Key_ASCII
+  156 000000FE F04F 0131       MOV              R1, #0x31
+  157 00000102 6001            STR              R1, [R0]
+  158 00000104 E00D            B                Scan_Col_0_done ; 
+  159 00000106         Found_key_4
+  160 00000106 4850            LDR              R0, =Key_ASCII
+  161 00000108 F04F 0134       MOV              R1, #0x34
+  162 0000010C 6001            STR              R1, [R0]
+  163 0000010E E008            B                Scan_Col_0_done ;
+  164 00000110         Found_key_7
+  165 00000110 484D            LDR              R0, =Key_ASCII
+  166 00000112 F04F 0137       MOV              R1, #0x37
+  167 00000116 6001            STR              R1, [R0]
+  168 00000118 E003            B                Scan_Col_0_done ;
+  169 0000011A         Found_key_star
+  170 0000011A 484B            LDR              R0, =Key_ASCII
+  171 0000011C F04F 012A       MOV              R1, #0x2A
+  172 00000120 6001            STR              R1, [R0]
+  173 00000122         Scan_Col_0_done
+  174 00000122 E8BD 4003       POP              {LR, R1, R0}
+  175 00000126 4770            BX               LR
+  176 00000128         
+  177 00000128         ; Subroutine Scan_Col_1 - scans column 1
+
+
+
+ARM Macro Assembler    Page 5 
+
+
+  178 00000128         ;*******************************************************
+                       ***********************************
+  179 00000128         Scan_Col_1
+  180 00000128 B503            PUSH             {LR, R1, R0}
+  181 0000012A F04F 0108       MOV              R1, #0x08   ; PA3 = 1
+  182 0000012E 4843            LDR              R0, =GPIO_PORTA_DATA_R
+  183 00000130 6001            STR              R1, [R0]
+  184 00000132         
+  185 00000132 F7FF FF9F       BL               Read_PortD  ;
+  186 00000136 4842            LDR              R0, =RFlag  ; check the flag
+  187 00000138 6801            LDR              R1, [R0]
+  188 0000013A 2900            CMP              R1, #0x00
+  189 0000013C D01F            BEQ              Scan_Col_1_done ;
+  190 0000013E         
+  191 0000013E 4841            LDR              R0, =Key
+  192 00000140 6801            LDR              R1, [R0]
+  193 00000142 F001 010F       AND              R1, #0x0F   ; we care only abou
+                                                            t the low nibble of
+                                                             port 
+  194 00000146 2901            CMP              R1, #0x01   ; check for Row 0
+  195 00000148 D006            BEQ              Found_key_2
+  196 0000014A 2902            CMP              R1, #0x02   ; check for Row 1
+  197 0000014C D009            BEQ              Found_key_5
+  198 0000014E 2904            CMP              R1, #0x04   ; check for Row 2
+  199 00000150 D00C            BEQ              Found_key_8
+  200 00000152 2908            CMP              R1, #0x08   ; check for Row 3
+  201 00000154 D00F            BEQ              Found_key_0
+  202 00000156 E012            B                Scan_Col_1_done ;
+  203 00000158         Found_key_2
+  204 00000158 483B            LDR              R0, =Key_ASCII
+  205 0000015A F04F 0132       MOV              R1, #0x32
+  206 0000015E 6001            STR              R1, [R0]
+  207 00000160 E00D            B                Scan_Col_1_done ; 
+  208 00000162         Found_key_5
+  209 00000162 4839            LDR              R0, =Key_ASCII
+  210 00000164 F04F 0135       MOV              R1, #0x35
+  211 00000168 6001            STR              R1, [R0]
+  212 0000016A E008            B                Scan_Col_1_done ;
+  213 0000016C         Found_key_8
+  214 0000016C 4836            LDR              R0, =Key_ASCII
+  215 0000016E F04F 0138       MOV              R1, #0x38
+  216 00000172 6001            STR              R1, [R0]
+  217 00000174 E003            B                Scan_Col_1_done ;
+  218 00000176         Found_key_0
+  219 00000176 4834            LDR              R0, =Key_ASCII
+  220 00000178 F04F 0130       MOV              R1, #0x30
+  221 0000017C 6001            STR              R1, [R0]
+  222 0000017E         Scan_Col_1_done
+  223 0000017E E8BD 4003       POP              {LR, R1, R0}
+  224 00000182 4770            BX               LR
+  225 00000184         
+  226 00000184         ; Subroutine Scan_Col_2 - scans column 2
+  227 00000184         ;*******************************************************
+                       ***********************************
+  228 00000184         Scan_Col_2
+  229 00000184 B503            PUSH             {LR, R1, R0}
+  230 00000186 F04F 0110       MOV              R1, #0x10   ; PA4 = 1
+  231 0000018A 482C            LDR              R0, =GPIO_PORTA_DATA_R
+  232 0000018C 6001            STR              R1, [R0]
+
+
+
+ARM Macro Assembler    Page 6 
+
+
+  233 0000018E         
+  234 0000018E F7FF FF71       BL               Read_PortD  ;
+  235 00000192 482B            LDR              R0, =RFlag  ; check the flag
+  236 00000194 6801            LDR              R1, [R0]
+  237 00000196 2900            CMP              R1, #0x00
+  238 00000198 D01F            BEQ              Scan_Col_2_done ;
+  239 0000019A         
+  240 0000019A 482A            LDR              R0, =Key
+  241 0000019C 6801            LDR              R1, [R0]
+  242 0000019E F001 010F       AND              R1, #0x0F   ; we care only abou
+                                                            t the low nibble of
+                                                             port 
+  243 000001A2 2901            CMP              R1, #0x01   ; check for Row 0
+  244 000001A4 D006            BEQ              Found_key_3
+  245 000001A6 2902            CMP              R1, #0x02   ; check for Row 1
+  246 000001A8 D009            BEQ              Found_key_6
+  247 000001AA 2904            CMP              R1, #0x04   ; check for Row 2
+  248 000001AC D00C            BEQ              Found_key_9
+  249 000001AE 2908            CMP              R1, #0x08   ; check for Row 3
+  250 000001B0 D00F            BEQ              Found_key_pound
+  251 000001B2 E012            B                Scan_Col_2_done ;
+  252 000001B4         Found_key_3
+  253 000001B4 4824            LDR              R0, =Key_ASCII
+  254 000001B6 F04F 0133       MOV              R1, #0x33
+  255 000001BA 6001            STR              R1, [R0]
+  256 000001BC E7B1            B                Scan_Col_0_done ; 
+  257 000001BE         Found_key_6
+  258 000001BE 4822            LDR              R0, =Key_ASCII
+  259 000001C0 F04F 0136       MOV              R1, #0x36
+  260 000001C4 6001            STR              R1, [R0]
+  261 000001C6 E7AC            B                Scan_Col_0_done ;
+  262 000001C8         Found_key_9
+  263 000001C8 481F            LDR              R0, =Key_ASCII
+  264 000001CA F04F 0139       MOV              R1, #0x39
+  265 000001CE 6001            STR              R1, [R0]
+  266 000001D0 E7A7            B                Scan_Col_0_done ;
+  267 000001D2         Found_key_pound
+  268 000001D2 481D            LDR              R0, =Key_ASCII
+  269 000001D4 F04F 0123       MOV              R1, #0x23
+  270 000001D8 6001            STR              R1, [R0]
+  271 000001DA         Scan_Col_2_done
+  272 000001DA E8BD 4003       POP              {LR, R1, R0}
+  273 000001DE 4770            BX               LR
+  274 000001E0         
+  275 000001E0         ; Subroutine Scan_Col_3 - scans column 3
+  276 000001E0         ;*******************************************************
+                       ***********************************
+  277 000001E0         Scan_Col_3
+  278 000001E0 B503            PUSH             {LR, R1, R0}
+  279 000001E2 F04F 0120       MOV              R1, #0x20   ; PA5 = 1
+  280 000001E6 4815            LDR              R0, =GPIO_PORTA_DATA_R
+  281 000001E8 6001            STR              R1, [R0]
+  282 000001EA         
+  283 000001EA F7FF FF43       BL               Read_PortD  ;
+  284 000001EE 4814            LDR              R0, =RFlag  ; check the flag
+  285 000001F0 6801            LDR              R1, [R0]
+  286 000001F2 2900            CMP              R1, #0x00
+  287 000001F4 D01F            BEQ              Scan_Col_3_done ;
+  288 000001F6         
+
+
+
+ARM Macro Assembler    Page 7 
+
+
+  289 000001F6 4813            LDR              R0, =Key
+  290 000001F8 6801            LDR              R1, [R0]
+  291 000001FA F001 010F       AND              R1, #0x0F   ; we care only abou
+                                                            t the low nibble of
+                                                             port 
+  292 000001FE 2901            CMP              R1, #0x01   ; check for Row 0
+  293 00000200 D006            BEQ              Found_key_A
+  294 00000202 2902            CMP              R1, #0x02   ; check for Row 1
+  295 00000204 D009            BEQ              Found_key_B
+  296 00000206 2904            CMP              R1, #0x04   ; check for Row 2
+  297 00000208 D00C            BEQ              Found_key_C
+  298 0000020A 2908            CMP              R1, #0x08   ; check for Row 3
+  299 0000020C D00F            BEQ              Found_key_D
+  300 0000020E E012            B                Scan_Col_3_done ;
+  301 00000210         Found_key_A
+  302 00000210 480D            LDR              R0, =Key_ASCII
+  303 00000212 F04F 0141       MOV              R1, #0x41
+  304 00000216 6001            STR              R1, [R0]
+  305 00000218 E00D            B                Scan_Col_3_done ; 
+  306 0000021A         Found_key_B
+  307 0000021A 480B            LDR              R0, =Key_ASCII
+  308 0000021C F04F 0142       MOV              R1, #0x42
+  309 00000220 6001            STR              R1, [R0]
+  310 00000222 E008            B                Scan_Col_3_done ;
+  311 00000224         Found_key_C
+  312 00000224 4808            LDR              R0, =Key_ASCII
+  313 00000226 F04F 0143       MOV              R1, #0x43
+  314 0000022A 6001            STR              R1, [R0]
+  315 0000022C E003            B                Scan_Col_3_done ;
+  316 0000022E         Found_key_D
+  317 0000022E 4806            LDR              R0, =Key_ASCII
+  318 00000230 F04F 0144       MOV              R1, #0x44
+  319 00000234 6001            STR              R1, [R0]
+  320 00000236         Scan_Col_3_done
+  321 00000236 E8BD 4003       POP              {LR, R1, R0}
+  322 0000023A 4770            BX               LR
+  323 0000023C         
+  324 0000023C                 END
+              400043FC 
+              00000000 
+              00000000 
+              00000000 
+Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M4 --apcs=interw
+ork --depend=.\keypad.d -o.\keypad.o -I.\RTE\_Target_1 -IC:\Keil_v5\ARM\PACK\AR
+M\CMSIS\5.8.0\CMSIS\Core\Include -IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Devi
+ce\Include\TM4C123 --predefine="__EVAL SETA 1" --predefine="__UVISION_VERSION S
+ETA 523" --predefine="_RTE_ SETA 1" --predefine="TM4C123GH6PM SETA 1" --list=.\
+keypad.lst Keypad.s
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Relocatable symbols
+
+Key 00000004
+
+Symbol: Key
+   Definitions
+      At line 17 in file Keypad.s
+   Uses
+      At line 106 in file Keypad.s
+      At line 142 in file Keypad.s
+      At line 191 in file Keypad.s
+      At line 240 in file Keypad.s
+      At line 289 in file Keypad.s
+
+RAMData 00000000
+
+Symbol: RAMData
+   Definitions
+      At line 15 in file Keypad.s
+   Uses
+      None
+Comment: RAMData unused
+RFlag 00000000
+
+Symbol: RFlag
+   Definitions
+      At line 16 in file Keypad.s
+   Uses
+      At line 73 in file Keypad.s
+      At line 78 in file Keypad.s
+      At line 83 in file Keypad.s
+      At line 88 in file Keypad.s
+      At line 101 in file Keypad.s
+      At line 119 in file Keypad.s
+      At line 137 in file Keypad.s
+      At line 186 in file Keypad.s
+      At line 235 in file Keypad.s
+      At line 284 in file Keypad.s
+
+3 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Relocatable symbols
+
+.text 00000000
+
+Symbol: .text
+   Definitions
+      At line 20 in file Keypad.s
+   Uses
+      None
+Comment: .text unused
+Done_Keypad 000000AA
+
+Symbol: Done_Keypad
+   Definitions
+      At line 123 in file Keypad.s
+   Uses
+      At line 109 in file Keypad.s
+      At line 118 in file Keypad.s
+
+End_Scan_Keypad 0000006E
+
+Symbol: End_Scan_Keypad
+   Definitions
+      At line 93 in file Keypad.s
+   Uses
+      At line 76 in file Keypad.s
+      At line 81 in file Keypad.s
+      At line 86 in file Keypad.s
+      At line 91 in file Keypad.s
+
+Found_key_0 00000176
+
+Symbol: Found_key_0
+   Definitions
+      At line 218 in file Keypad.s
+   Uses
+      At line 201 in file Keypad.s
+Comment: Found_key_0 used once
+Found_key_1 000000FC
+
+Symbol: Found_key_1
+   Definitions
+      At line 154 in file Keypad.s
+   Uses
+      At line 146 in file Keypad.s
+Comment: Found_key_1 used once
+Found_key_2 00000158
+
+Symbol: Found_key_2
+   Definitions
+      At line 203 in file Keypad.s
+   Uses
+      At line 195 in file Keypad.s
+Comment: Found_key_2 used once
+Found_key_3 000001B4
+
+Symbol: Found_key_3
+   Definitions
+      At line 252 in file Keypad.s
+   Uses
+      At line 244 in file Keypad.s
+
+
+
+ARM Macro Assembler    Page 2 Alphabetic symbol ordering
+Relocatable symbols
+
+Comment: Found_key_3 used once
+Found_key_4 00000106
+
+Symbol: Found_key_4
+   Definitions
+      At line 159 in file Keypad.s
+   Uses
+      At line 148 in file Keypad.s
+Comment: Found_key_4 used once
+Found_key_5 00000162
+
+Symbol: Found_key_5
+   Definitions
+      At line 208 in file Keypad.s
+   Uses
+      At line 197 in file Keypad.s
+Comment: Found_key_5 used once
+Found_key_6 000001BE
+
+Symbol: Found_key_6
+   Definitions
+      At line 257 in file Keypad.s
+   Uses
+      At line 246 in file Keypad.s
+Comment: Found_key_6 used once
+Found_key_7 00000110
+
+Symbol: Found_key_7
+   Definitions
+      At line 164 in file Keypad.s
+   Uses
+      At line 150 in file Keypad.s
+Comment: Found_key_7 used once
+Found_key_8 0000016C
+
+Symbol: Found_key_8
+   Definitions
+      At line 213 in file Keypad.s
+   Uses
+      At line 199 in file Keypad.s
+Comment: Found_key_8 used once
+Found_key_9 000001C8
+
+Symbol: Found_key_9
+   Definitions
+      At line 262 in file Keypad.s
+   Uses
+      At line 248 in file Keypad.s
+Comment: Found_key_9 used once
+Found_key_A 00000210
+
+Symbol: Found_key_A
+   Definitions
+      At line 301 in file Keypad.s
+   Uses
+      At line 293 in file Keypad.s
+Comment: Found_key_A used once
+Found_key_B 0000021A
+
+
+
+
+ARM Macro Assembler    Page 3 Alphabetic symbol ordering
+Relocatable symbols
+
+Symbol: Found_key_B
+   Definitions
+      At line 306 in file Keypad.s
+   Uses
+      At line 295 in file Keypad.s
+Comment: Found_key_B used once
+Found_key_C 00000224
+
+Symbol: Found_key_C
+   Definitions
+      At line 311 in file Keypad.s
+   Uses
+      At line 297 in file Keypad.s
+Comment: Found_key_C used once
+Found_key_D 0000022E
+
+Symbol: Found_key_D
+   Definitions
+      At line 316 in file Keypad.s
+   Uses
+      At line 299 in file Keypad.s
+Comment: Found_key_D used once
+Found_key_pound 000001D2
+
+Symbol: Found_key_pound
+   Definitions
+      At line 267 in file Keypad.s
+   Uses
+      At line 250 in file Keypad.s
+Comment: Found_key_pound used once
+Found_key_star 0000011A
+
+Symbol: Found_key_star
+   Definitions
+      At line 169 in file Keypad.s
+   Uses
+      At line 152 in file Keypad.s
+Comment: Found_key_star used once
+Init_Keypad 00000010
+
+Symbol: Init_Keypad
+   Definitions
+      At line 45 in file Keypad.s
+   Uses
+      At line 28 in file Keypad.s
+Comment: Init_Keypad used once
+Read_Key 00000000
+
+Symbol: Read_Key
+   Definitions
+      At line 34 in file Keypad.s
+   Uses
+      At line 27 in file Keypad.s
+Comment: Read_Key used once
+Read_PortD 00000074
+
+Symbol: Read_PortD
+   Definitions
+      At line 99 in file Keypad.s
+
+
+
+ARM Macro Assembler    Page 4 Alphabetic symbol ordering
+Relocatable symbols
+
+   Uses
+      At line 136 in file Keypad.s
+      At line 185 in file Keypad.s
+      At line 234 in file Keypad.s
+      At line 283 in file Keypad.s
+
+Scan_Col_0 000000CC
+
+Symbol: Scan_Col_0
+   Definitions
+      At line 130 in file Keypad.s
+   Uses
+      At line 72 in file Keypad.s
+Comment: Scan_Col_0 used once
+Scan_Col_0_done 00000122
+
+Symbol: Scan_Col_0_done
+   Definitions
+      At line 173 in file Keypad.s
+   Uses
+      At line 140 in file Keypad.s
+      At line 153 in file Keypad.s
+      At line 158 in file Keypad.s
+      At line 163 in file Keypad.s
+      At line 168 in file Keypad.s
+      At line 256 in file Keypad.s
+      At line 261 in file Keypad.s
+      At line 266 in file Keypad.s
+
+Scan_Col_1 00000128
+
+Symbol: Scan_Col_1
+   Definitions
+      At line 179 in file Keypad.s
+   Uses
+      At line 77 in file Keypad.s
+Comment: Scan_Col_1 used once
+Scan_Col_1_done 0000017E
+
+Symbol: Scan_Col_1_done
+   Definitions
+      At line 222 in file Keypad.s
+   Uses
+      At line 189 in file Keypad.s
+      At line 202 in file Keypad.s
+      At line 207 in file Keypad.s
+      At line 212 in file Keypad.s
+      At line 217 in file Keypad.s
+
+Scan_Col_2 00000184
+
+Symbol: Scan_Col_2
+   Definitions
+      At line 228 in file Keypad.s
+   Uses
+      At line 82 in file Keypad.s
+Comment: Scan_Col_2 used once
+Scan_Col_2_done 000001DA
+
+
+
+
+ARM Macro Assembler    Page 5 Alphabetic symbol ordering
+Relocatable symbols
+
+Symbol: Scan_Col_2_done
+   Definitions
+      At line 271 in file Keypad.s
+   Uses
+      At line 238 in file Keypad.s
+      At line 251 in file Keypad.s
+
+Scan_Col_3 000001E0
+
+Symbol: Scan_Col_3
+   Definitions
+      At line 277 in file Keypad.s
+   Uses
+      At line 87 in file Keypad.s
+Comment: Scan_Col_3 used once
+Scan_Col_3_done 00000236
+
+Symbol: Scan_Col_3_done
+   Definitions
+      At line 320 in file Keypad.s
+   Uses
+      At line 287 in file Keypad.s
+      At line 300 in file Keypad.s
+      At line 305 in file Keypad.s
+      At line 310 in file Keypad.s
+      At line 315 in file Keypad.s
+
+Scan_Keypad 0000003A
+
+Symbol: Scan_Keypad
+   Definitions
+      At line 69 in file Keypad.s
+   Uses
+      At line 30 in file Keypad.s
+      At line 36 in file Keypad.s
+
+Scan_Keypad_Again 0000003C
+
+Symbol: Scan_Keypad_Again
+   Definitions
+      At line 71 in file Keypad.s
+   Uses
+      At line 92 in file Keypad.s
+Comment: Scan_Keypad_Again used once
+32 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Absolute symbols
+
+GPIO_PORTA_DATA_R 400043FC
+
+Symbol: GPIO_PORTA_DATA_R
+   Definitions
+      At line 6 in file Keypad.s
+   Uses
+      At line 133 in file Keypad.s
+      At line 182 in file Keypad.s
+      At line 231 in file Keypad.s
+      At line 280 in file Keypad.s
+
+GPIO_PORTA_DEN_R 4000451C
+
+Symbol: GPIO_PORTA_DEN_R
+   Definitions
+      At line 7 in file Keypad.s
+   Uses
+      None
+Comment: GPIO_PORTA_DEN_R unused
+GPIO_PORTA_DIR_R 40004400
+
+Symbol: GPIO_PORTA_DIR_R
+   Definitions
+      At line 5 in file Keypad.s
+   Uses
+      None
+Comment: GPIO_PORTA_DIR_R unused
+GPIO_PORTC_DATA_R 400063FC
+
+Symbol: GPIO_PORTC_DATA_R
+   Definitions
+      At line 9 in file Keypad.s
+   Uses
+      None
+Comment: GPIO_PORTC_DATA_R unused
+GPIO_PORTC_DEN_R 4000651C
+
+Symbol: GPIO_PORTC_DEN_R
+   Definitions
+      At line 10 in file Keypad.s
+   Uses
+      None
+Comment: GPIO_PORTC_DEN_R unused
+GPIO_PORTC_DIR_R 40006400
+
+Symbol: GPIO_PORTC_DIR_R
+   Definitions
+      At line 8 in file Keypad.s
+   Uses
+      None
+Comment: GPIO_PORTC_DIR_R unused
+GPIO_PORTD_DATA_R 400073FC
+
+Symbol: GPIO_PORTD_DATA_R
+   Definitions
+      At line 2 in file Keypad.s
+   Uses
+      At line 104 in file Keypad.s
+      At line 114 in file Keypad.s
+
+
+
+ARM Macro Assembler    Page 2 Alphabetic symbol ordering
+Absolute symbols
+
+
+GPIO_PORTD_DEN_R 4000751C
+
+Symbol: GPIO_PORTD_DEN_R
+   Definitions
+      At line 4 in file Keypad.s
+   Uses
+      At line 60 in file Keypad.s
+Comment: GPIO_PORTD_DEN_R used once
+GPIO_PORTD_DIR_R 40007400
+
+Symbol: GPIO_PORTD_DIR_R
+   Definitions
+      At line 3 in file Keypad.s
+   Uses
+      At line 55 in file Keypad.s
+Comment: GPIO_PORTD_DIR_R used once
+SYSCTL_RCGCGPIO_R 400FE608
+
+Symbol: SYSCTL_RCGCGPIO_R
+   Definitions
+      At line 1 in file Keypad.s
+   Uses
+      At line 49 in file Keypad.s
+Comment: SYSCTL_RCGCGPIO_R used once
+10 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+External symbols
+
+Delay1ms 00000000
+
+Symbol: Delay1ms
+   Definitions
+      At line 22 in file Keypad.s
+   Uses
+      At line 112 in file Keypad.s
+Comment: Delay1ms used once
+Display_Char 00000000
+
+Symbol: Display_Char
+   Definitions
+      At line 24 in file Keypad.s
+   Uses
+      None
+Comment: Display_Char unused
+Key_ASCII 00000000
+
+Symbol: Key_ASCII
+   Definitions
+      At line 25 in file Keypad.s
+   Uses
+      At line 38 in file Keypad.s
+      At line 155 in file Keypad.s
+      At line 160 in file Keypad.s
+      At line 165 in file Keypad.s
+      At line 170 in file Keypad.s
+      At line 204 in file Keypad.s
+      At line 209 in file Keypad.s
+      At line 214 in file Keypad.s
+      At line 219 in file Keypad.s
+      At line 253 in file Keypad.s
+      At line 258 in file Keypad.s
+      At line 263 in file Keypad.s
+      At line 268 in file Keypad.s
+      At line 302 in file Keypad.s
+      At line 307 in file Keypad.s
+      At line 312 in file Keypad.s
+      At line 317 in file Keypad.s
+
+Set_Position 00000000
+
+Symbol: Set_Position
+   Definitions
+      At line 23 in file Keypad.s
+   Uses
+      None
+Comment: Set_Position unused
+4 symbols
+387 symbols in table

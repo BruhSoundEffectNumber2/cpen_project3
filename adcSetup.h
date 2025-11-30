@@ -7,4 +7,5 @@
 
 void adcInit(void);
 uint32_t adcRead(void);
+
 #endif

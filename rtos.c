@@ -30,7 +30,7 @@ struct TCB tcbs[NUM_THREADS];
 struct TCB *RunPt;
 // Stacks for all threads
 int32_t Stacks[NUM_THREADS][STACK_SIZE];
-
+void PI_Handler(void);
 uint32_t Mail;
 int32_t Lost = 0;
 int32_t Send = 0;
@@ -40,8 +40,30 @@ uint32_t GetI;
 uint32_t Fifo[FIFO_SIZE];
 int32_t CurrentSize = 0;
 
+
+void PI_Timer_Init(void)
+{
+    SYSCTL_RCGCTIMER_R |= 0x01;     // Enable Timer0 clock
+    while((SYSCTL_RCGCTIMER_R & 0x01) == 0);
+
+    TIMER0_CTL_R   &= ~0x01;        // Disable Timer0A
+    TIMER0_CFG_R    = 0x00;         // 32-bit mode
+    TIMER0_TAMR_R   = 0x02;         // Periodic timer, down-count
+    TIMER0_TAILR_R  = 160000 - 1;   // 10 ms @ 16 MHz
+    TIMER0_TAPR_R   = 0;            // No prescale
+
+    TIMER0_ICR_R    = 0x01;         // Clear timeout flag
+    TIMER0_IMR_R   |= 0x01;         // Enable timeout interrupt
+
+    NVIC_EN0_R     |= (1 << 19);    // IRQ 19 = Timer0A
+
+    TIMER0_CTL_R   |= 0x01;         // Enable Timer0A
+}
+
+
+
 extern void TIMER0A_Handler(void) {
-    //OS_Suspend();   // or whatever you want Timer0A to do
+    PI_Handler();
 }
 
 void OS_FIFO_Init(void)

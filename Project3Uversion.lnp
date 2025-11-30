@@ -1,0 +1,15 @@
+--cpu=Cortex-M4 --fpu=SoftVFP
+".\adcsetup.o"
+".\ascii_conversions.o"
+".\keypad.o"
+".\lcd.o"
+".\osasm_v2.o"
+".\pwmdriver.o"
+".\rtos.o"
+".\user.o"
+".\voltage2rpm.o"
+".\startup_tm4c123.o"
+".\system_tm4c123.o"
+--ro-base 0x00000000 --entry 0x00000000 --rw-base 0x20000000 --entry Reset_Handler --first __Vectors --strict --summary_stderr --info summarysizes --map --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list ".\Project3Uversion.map" -o .\Project3Uversion.axf

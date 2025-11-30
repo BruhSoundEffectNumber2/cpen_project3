@@ -2,6 +2,7 @@
     "files.associations": {
         "rtos.h": "c",
         "pwmdriver.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "time.h": "c"
     }
 }

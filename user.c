@@ -204,6 +204,7 @@ void SetMotorSpeed(void)
 
 void InputControl(void)
 {
+	int pressed = 0;
 	int counter = 0;
 	currentInput[0] = '\0';
 
@@ -213,10 +214,8 @@ void InputControl(void)
 		Read_Key();
 		uint32_t test = Key_ASCII;
 		unsigned char current = (unsigned char)(Key_ASCII & 0xFF);
-		if (current != 0x00)
+		if (current != 0x00 && !pressed)
 		{
-			Key_ASCII = 0; // consume
-
 			if ((current >= '0' && current <= '9') && counter < 4)
 			{
 				currentInput[counter++] = (char)current;
@@ -239,6 +238,10 @@ void InputControl(void)
 				currentInput[0] = '\0';
 			}
 			// OS_Sleep(10);
+		}
+		else if (pressed)
+		{
+			pressed = 0;
 		}
 	}
 }

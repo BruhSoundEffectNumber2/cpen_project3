@@ -58,7 +58,6 @@ void PI_Handler(void)
 {
 	int32_t kp = 1;
 	int32_t ki = 2;
-	int32_t kd = 2; // <-- ADDED (tune this)
 
 	int32_t iLow = -3000;
 	int32_t iHigh = 3000;
@@ -68,11 +67,6 @@ void PI_Handler(void)
 	// filtered error
 	static int32_t eFilt = 0;
 	const int32_t FILTER_N = 4;
-
-	// derivative on measurement (damping, less noise than d(error) when setpoint changes)
-	static int32_t pvPrev = 0;	// <-- ADDED
-	static int32_t dFilt = 0;	// <-- ADDED
-	const int32_t D_FILT_N = 4; // <-- ADDED
 
 	if (++piCount >= PI_UPDATE_DIV)
 	{
@@ -88,8 +82,6 @@ void PI_Handler(void)
 		{
 			I = 0;
 			lastU = 0;
-			pvPrev = (int32_t)pv; // <-- ADDED
-			dFilt = 0;			  // <-- ADDED
 			MOT34_Speed_Set(0);
 			TIMER0_ICR_R = 0x01;
 			return;
@@ -99,7 +91,9 @@ void PI_Handler(void)
 
 		// tiny deadband
 		if (e > -3 && e < 3)
+		{
 			e = 0;
+		}
 
 		// faster filter
 		eFilt = ((FILTER_N - 1) * eFilt + e) / FILTER_N;
@@ -113,17 +107,7 @@ void PI_Handler(void)
 		if (I_next > iHigh)
 			I_next = iHigh;
 
-		// --- ADDED: D term (derivative on pv), filtered ---
-		int32_t dpv = (int32_t)pv - pvPrev;
-		pvPrev = (int32_t)pv;
-
-		dFilt = ((D_FILT_N - 1) * dFilt + dpv) / D_FILT_N;
-
-		// If pv is rising fast, subtract to add damping (slows the *change*, not the target)
-		int32_t d = -kd * dFilt;
-		// -----------------------------------------------
-
-		int32_t U_unsat = p + I_next + d; // <-- CHANGED (added d)
+		int32_t U_unsat = p + I_next;
 
 		// clamp to PWM range
 		int32_t U_clamped = U_unsat;

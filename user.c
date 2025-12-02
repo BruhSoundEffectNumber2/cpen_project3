@@ -7,13 +7,13 @@
 #define TIMESLICE 32000 // 2ms
 #include "adcSetup.h"
 #define CPU_HZ 160000000u
-#define MOT34_PERIOD   4000u
+#define MOT34_PERIOD   100000
 #define PWM_DUTY_MIN   0u
 #define PWM_DUTY_MAX   (MOT34_PERIOD - 1u)
 #define PI_UPDATE_DIV  100u
 #define ADC_REF_MV     3300u
 #define ADC_MAX_COUNTS 255u
-
+#define FULL_RPM 2400
 #include <time.h>
 void Read_Key(void);
 void Init_Keypad(void);
@@ -29,7 +29,6 @@ volatile uint32_t avgMotorRPM = 0;
 volatile uint32_t targetMotorRPM = 0;
 volatile uint32_t estMotorRPM = 0;
 volatile uint32_t piCount = 0;
-#define ADC_REF_MV       10000u
 #define ADC_MAX_COUNTS   255u   
 #define OVERSPEED_BAND_RPM  5u  
 #define SPEED_SENSE_FS_MV     95000u   // what Current_speed() expects at full-scale
@@ -39,40 +38,44 @@ int32_t mutex = 1;
 char currentInput[5] = {0};
 
 
-static inline void DWT_DelayInit(void)
+static inline void Delay100us_Init(void)
 {
-    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk; // enable trace
-    DWT->CYCCNT = 0;
-    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;            // enable cycle counter
-}
+    SYSCTL_RCGCTIMER_R |= (1u << 5);   // enable clock to TIMER5
+    (void)SYSCTL_RCGCTIMER_R;          // allow clock to start
 
+    TIMER5_CTL_R = 0u;                // disable Timer5A during setup
+    TIMER5_CFG_R = 0u;                // 32-bit timer
+    TIMER5_TAMR_R = 0x02u;            // periodic mode, down-count
+    TIMER5_TAILR_R = 0xFFFFFFFFu;     // max reload
+    TIMER5_CTL_R = 0x01u;             // enable Timer5A
+}
 
 static inline void Delay100us(void)
 {
-    const uint32_t cycles = (CPU_HZ / 10000u); // 100us worth of cycles
-    uint32_t start = DWT->CYCCNT;
-    while ((uint32_t)(DWT->CYCCNT - start) < cycles) { }
+    const uint32_t ticks = (CPU_HZ / 1000u);  // 100 us worth of bus cycles
+    uint32_t start = TIMER5_TAR_R;             // current down-counter value
+    while ((uint32_t)(start - TIMER5_TAR_R) < ticks) { }
 }
 
 void PI_Handler(void)
 {
-    int32_t kp = 1;
-    int32_t ki = 2;
-    int32_t kd = 2;   // <-- ADDED (tune this)
+    // ----- GAINS -----
+    const int32_t kp = 1;
+    const int32_t ki = 3;
 
-    int32_t iLow  = -3000;
-    int32_t iHigh =  3000;
+    // ----- INTEGRAL LIMITS -----
+    const int32_t iLow  = -3000;
+    const int32_t iHigh =  3000;
 
-    static int32_t lastU = 0;
-
-    // filtered error
+    // ----- ERROR FILTER -----
     static int32_t eFilt = 0;
     const int32_t FILTER_N = 4;
 
-    // derivative on measurement (damping, less noise than d(error) when setpoint changes)
-    static int32_t pvPrev = 0;    // <-- ADDED
-    static int32_t dFilt  = 0;    // <-- ADDED
-    const int32_t D_FILT_N = 4;   // <-- ADDED
+    // ----- PWM OUTPUT MEMORY -----
+    static int32_t lastU = 0;
+
+    // ----- MAX MOTOR RPM (required for scaling RPM -> PWM duty) -----
+    
 
     if (++piCount >= PI_UPDATE_DIV)
     {
@@ -84,70 +87,64 @@ void PI_Handler(void)
         pv = estMotorRPM;
         OS_Signal(&mutex);
 
+        // Target = 0 → stop everything cleanly
         if (sp == 0)
         {
             I = 0;
             lastU = 0;
-            pvPrev = (int32_t)pv;   // <-- ADDED
-            dFilt = 0;              // <-- ADDED
             MOT34_Speed_Set(0);
             TIMER0_ICR_R = 0x01;
             return;
         }
 
+        // Compute error
         int32_t e = (int32_t)sp - (int32_t)pv;
 
-        // tiny deadband
+        // Small deadband
         if (e > -3 && e < 3) e = 0;
 
-        // faster filter
+        // Filter error
         eFilt = ((FILTER_N - 1) * eFilt + e) / FILTER_N;
 
-        // PI components
+        // P term
         int32_t p = kp * eFilt;
 
+        // I term (with limiting)
         int32_t I_next = I + ki * eFilt;
         if (I_next < iLow)  I_next = iLow;
         if (I_next > iHigh) I_next = iHigh;
 
-        // --- ADDED: D term (derivative on pv), filtered ---
-        int32_t dpv = (int32_t)pv - pvPrev;
-        pvPrev = (int32_t)pv;
+        // RAW PI output in RPM units
+        int32_t U_rpm = p + I_next;
 
-        dFilt = ((D_FILT_N - 1) * dFilt + dpv) / D_FILT_N;
+        // ----- SCALE TO PWM DUTY RANGE -----
+        int32_t U_unsat = (U_rpm * PWM_DUTY_MAX) / FULL_RPM;
 
-        // If pv is rising fast, subtract to add damping (slows the *change*, not the target)
-        int32_t d = -kd * dFilt;
-        // -----------------------------------------------
+        // Hard clamp to PWM boundaries
+        if (U_unsat < PWM_DUTY_MIN) U_unsat = PWM_DUTY_MIN;
+        if (U_unsat > PWM_DUTY_MAX) U_unsat = PWM_DUTY_MAX;
 
-        int32_t U_unsat = p + I_next + d;   // <-- CHANGED (added d)
-
-        // clamp to PWM range
-        int32_t U_clamped = U_unsat;
-        if (U_clamped < PWM_DUTY_MIN) U_clamped = PWM_DUTY_MIN;
-        if (U_clamped > PWM_DUTY_MAX) U_clamped = PWM_DUTY_MAX;
-
-        // DYNAMIC STEP SIZE (FAST → SLOW → PRECISION)
-        int32_t absE = (e >= 0 ? e : -e);
+        // ----- DYNAMIC SLEW RATE LIMITER -----
+        int32_t absE = (eFilt >= 0 ? eFilt : -eFilt);
         int32_t maxStep;
 
-        if (absE > 500)         maxStep = 120;
-        else if (absE > 200)    maxStep = 60;
-        else if (absE > 100)    maxStep = 30;
-        else if (absE > 50)     maxStep = 10;
-        else if (absE > 20)     maxStep = 5;
-        else                    maxStep = 1;
+        if      (absE > 500) maxStep = 120;
+        else if (absE > 200) maxStep = 60;
+        else if (absE > 100) maxStep = 30;
+        else if (absE > 50)  maxStep = 10;
+        else if (absE > 20)  maxStep = 5;
+        else                 maxStep = 1;
 
-        // apply slew limit
-        int32_t U = U_clamped;
+        int32_t U = U_unsat;
         int32_t diff = U - lastU;
+
         if (diff >  maxStep) U = lastU + maxStep;
         if (diff < -maxStep) U = lastU - maxStep;
 
         lastU = U;
 
-        // <-- CHANGED: only block integral on *PWM saturation*, not on slew limiting
-        if (U_clamped == U_unsat)
+        // Accept integrator only if no PWM saturation
+        if (U_unsat == (int32_t)((U_rpm * PWM_DUTY_MAX) / FULL_RPM))
             I = I_next;
 
         MOT34_Speed_Set((uint32_t)U);
@@ -177,7 +174,8 @@ void SetMotorSpeed(void)
         uint32_t avg_counts = (sum + 50u) / 100u; // rounded average (0..255)
 
         // Map 0..255 counts -> 0..95000 mV (matches Current_speed() expected input range)
-        uint32_t mv = (avg_counts * ADC_REF_MV + 127) / 255;
+        uint32_t mv = (avg_counts * 33000u + 127u) / 255u;
+
 
 
         int32_t rpm = Current_speed((int32_t)mv);
@@ -272,11 +270,11 @@ int main(void)
 	Init_LCD();
 	Init_Keypad();
 	adcInit();
-	DWT_DelayInit();
+	Delay100us_Init();
 
 	// Now start the rest of the system
 
-	MOT34_Init(4000, 0);
+	MOT34_Init(100000, 0);
 	MOT34_Forward();
 	//MOT34_Speed_Set(2000); // ensure a valid nonzero command immediately
 

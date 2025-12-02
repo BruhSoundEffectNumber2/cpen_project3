@@ -1,7 +1,7 @@
 #include "pwmDriver.h"
 void Delay1ms(uint32_t n);
 
-void MOT34_Init(uint16_t period, uint16_t duty) { 
+void MOT34_Init(uint32_t period, uint16_t duty) { 
     SYSCTL->RCGCPWM |= 0x02;  
     SYSCTL->RCGCGPIO |= 0x20; 
     SYSCTL->RCGCGPIO |= 0x02; 

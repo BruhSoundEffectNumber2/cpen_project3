@@ -30,7 +30,8 @@ volatile uint32_t piCount = 0;
 #define ADC_REF_MV       3300u
 #define ADC_MAX_COUNTS   255u   
 #define OVERSPEED_BAND_RPM  10u  
-
+#define SPEED_SENSE_FS_MV     9500u   // what Current_speed() expects at full-scale
+#define SPEED_SENSE_FS_COUNTS 255u     // 8-bit ADC full-scale
 int32_t I = 0;
 int32_t mutex = 1;
 char currentInput[5] = {0};
@@ -53,10 +54,10 @@ static inline void Delay100us(void)
 
 void PI_Handler(void)
 {
-    uint32_t kp = 40;
-    uint32_t ki = 10;
-    int32_t iLow = -4000;
-    int32_t iHigh = 4000;
+    uint32_t kp = 3;     // proportional gain
+    uint32_t ki = 1;     // integral gain
+    int32_t  iLow  = -3000;
+    int32_t  iHigh =  3000;
 
     if (++piCount >= PI_UPDATE_DIV)
     {
@@ -64,70 +65,86 @@ void PI_Handler(void)
 
         uint32_t sp, pv;
         OS_Wait(&mutex);
-        sp = targetMotorRPM;   // RPM
-        pv = estMotorRPM;      // RPM
+        sp = targetMotorRPM;
+        pv = estMotorRPM;
         OS_Signal(&mutex);
 
-        if (sp == 0u)
+        if (sp == 0)
         {
             I = 0;
             MOT34_Speed_Set(0);
+            TIMER0_ICR_R = 0x01;
+            return;
         }
-        else if (pv > (sp + OVERSPEED_BAND_RPM))
-        {
-            I = 0;
-            MOT34_Speed_Set(0);
-        }
-        else
-        {
-            int32_t e = (int32_t)sp - (int32_t)pv;
-            int32_t p = (int32_t)(kp * e / 20);
 
-            int32_t dI = (int32_t)(ki * e / 640);
-            int32_t I_next = I + dI;
+        int32_t e = (int32_t)sp - (int32_t)pv;
 
-            if (I_next < iLow) I_next = iLow;
-            else if (I_next > iHigh) I_next = iHigh;
+        // 5 RPM deadband
+        if (e > -5 && e < 5) e = 0;
 
-            int32_t U_unsat = p + I_next;
+        // integer proportional
+        int32_t p = kp * e;
 
-            int32_t U = U_unsat;
-            if (U < (int32_t)PWM_DUTY_MIN) U = (int32_t)PWM_DUTY_MIN;
-            else if (U > (int32_t)PWM_DUTY_MAX) U = (int32_t)PWM_DUTY_MAX;
+        // integer integral
+        int32_t I_next = I + (ki * e);
 
-            if (U == U_unsat) I = I_next;
+        // clamp integral
+        if (I_next < iLow)  I_next = iLow;
+        if (I_next > iHigh) I_next = iHigh;
 
-            MOT34_Speed_Set((uint32_t)U);
-        }
+        int32_t U_unsat = p + I_next;
+
+        // PWM clamp
+        int32_t U = U_unsat;
+        if (U < (int32_t)PWM_DUTY_MIN)  U = PWM_DUTY_MIN;
+        if (U > (int32_t)PWM_DUTY_MAX)  U = PWM_DUTY_MAX;
+
+        // only update integrator when not saturated
+        if (U == U_unsat)
+            I = I_next;
+
+        MOT34_Speed_Set((uint32_t)U);
     }
 
     TIMER0_ICR_R = 0x01;
 }
 
 
+
+
+
 void SetMotorSpeed(void)
 {
+    static int32_t filt_rpm = 0;
+
     while (1)
     {
         uint32_t sum = 0;
 
         for (int i = 0; i < 100; i++)
         {
-            sum += adcRead();     // 8-bit: 0..255
+            sum += (uint32_t)adcRead();   // 8-bit: 0..255
             Delay100us();
         }
 
-        uint32_t mv = (sum ) / (100);
-				mv = mv*10;
+        uint32_t avg_counts = (sum + 50u) / 100u; // rounded average (0..255)
+
+        // Map 0..255 counts -> 0..95000 mV (matches Current_speed() expected input range)
+        uint32_t mv = (avg_counts * SPEED_SENSE_FS_MV + (SPEED_SENSE_FS_COUNTS / 2u)) / SPEED_SENSE_FS_COUNTS;
+
         int32_t rpm = Current_speed((int32_t)mv);
         if (rpm < 0) rpm = 0;
 
+        // Simple LPF to stop 0/9999 bouncing (IIR: y += (x-y)/4)
+        filt_rpm += (rpm - filt_rpm) >> 2;
+
         OS_Wait(&mutex);
-        avgMotorRPM = (uint32_t)rpm*5;   // display RPM
-        estMotorRPM = (uint32_t)rpm;   // PI feedback RPM
+        avgMotorRPM = (uint32_t)filt_rpm;
+        estMotorRPM = (uint32_t)filt_rpm;
         OS_Signal(&mutex);
     }
 }
+
 void InputControl(void)
 {
 	int counter = 0;

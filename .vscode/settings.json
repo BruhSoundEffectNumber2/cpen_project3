@@ -3,6 +3,7 @@
         "rtos.h": "c",
         "pwmdriver.h": "c",
         "stdint.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "tm4c123gh6pm_def.h": "c"
     }
 }

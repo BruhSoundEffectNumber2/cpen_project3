@@ -68,7 +68,7 @@ void PI_Handler(void)
     const int32_t iHigh =  3000;
 
     // ----- ERROR FILTER -----
-    static int32_t eFilt = 0;
+    static int32_t eFilt = 1;
     const int32_t FILTER_N = 4;
 
     // ----- PWM OUTPUT MEMORY -----
@@ -128,11 +128,11 @@ void PI_Handler(void)
         int32_t absE = (eFilt >= 0 ? eFilt : -eFilt);
         int32_t maxStep;
 
-        if      (absE > 500) maxStep = 120;
-        else if (absE > 200) maxStep = 60;
-        else if (absE > 100) maxStep = 30;
-        else if (absE > 50)  maxStep = 10;
-        else if (absE > 20)  maxStep = 5;
+        if      (absE > 500) maxStep = 512;
+        else if (absE > 200) maxStep = 250;
+        else if (absE > 100) maxStep = 120;
+        else if (absE > 50)  maxStep = 150;
+        else if (absE > 20)  maxStep = 60;
         else                 maxStep = 1;
 
         int32_t U = U_unsat;
@@ -143,9 +143,7 @@ void PI_Handler(void)
 
         lastU = U;
 
-        // Accept integrator only if no PWM saturation
-        if (U_unsat == (int32_t)((U_rpm * PWM_DUTY_MAX) / FULL_RPM))
-            I = I_next;
+        I = I_next;
 
         MOT34_Speed_Set((uint32_t)U);
     }
@@ -216,6 +214,7 @@ void InputControl(void)
 				int val = atoi(currentInput);
 
 				OS_Wait(&mutex);
+				I = 0;
 				targetMotorRPM = (uint32_t)val;
 				OS_Signal(&mutex);
 

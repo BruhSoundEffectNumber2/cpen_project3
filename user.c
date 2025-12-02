@@ -11,6 +11,8 @@
 #define PWM_DUTY_MIN   0u
 #define PWM_DUTY_MAX   (MOT34_PERIOD - 1u)
 #define PI_UPDATE_DIV  100u
+#define ADC_REF_MV     3300u
+#define ADC_MAX_COUNTS 255u
 
 #include <time.h>
 void Read_Key(void);
@@ -54,10 +56,17 @@ static inline void Delay100us(void)
 
 void PI_Handler(void)
 {
-    uint32_t kp = 3;     // proportional gain
-    uint32_t ki = 1;     // integral gain
-    int32_t  iLow  = -3000;
-    int32_t  iHigh =  3000;
+    int32_t kp = 1;
+    int32_t ki = 1;
+
+    int32_t iLow  = -3000;
+    int32_t iHigh =  3000;
+
+    static int32_t lastU = 0;
+
+    // filtered error
+    static int32_t eFilt = 0;
+    const int32_t FILTER_N = 4;   // faster response but still smooth
 
     if (++piCount >= PI_UPDATE_DIV)
     {
@@ -72,6 +81,7 @@ void PI_Handler(void)
         if (sp == 0)
         {
             I = 0;
+            lastU = 0;
             MOT34_Speed_Set(0);
             TIMER0_ICR_R = 0x01;
             return;
@@ -79,27 +89,45 @@ void PI_Handler(void)
 
         int32_t e = (int32_t)sp - (int32_t)pv;
 
-        // 5 RPM deadband
-        if (e > -5 && e < 5) e = 0;
+        // tiny deadband
+        if (e > -3 && e < 3)
+            e = 0;
 
-        // integer proportional
-        int32_t p = kp * e;
+        // faster filter
+        eFilt = ((FILTER_N - 1) * eFilt + e) / FILTER_N;
 
-        // integer integral
-        int32_t I_next = I + (ki * e);
+        // PI components
+        int32_t p = kp * eFilt;
 
-        // clamp integral
+        int32_t I_next = I + ki * eFilt;
         if (I_next < iLow)  I_next = iLow;
         if (I_next > iHigh) I_next = iHigh;
 
         int32_t U_unsat = p + I_next;
 
-        // PWM clamp
         int32_t U = U_unsat;
-        if (U < (int32_t)PWM_DUTY_MIN)  U = PWM_DUTY_MIN;
-        if (U > (int32_t)PWM_DUTY_MAX)  U = PWM_DUTY_MAX;
+        if (U < PWM_DUTY_MIN) U = PWM_DUTY_MIN;
+        if (U > PWM_DUTY_MAX) U = PWM_DUTY_MAX;
 
-        // only update integrator when not saturated
+        // -----------------------------------------
+        // DYNAMIC STEP SIZE (FAST → SLOW → PRECISION)
+        // -----------------------------------------
+        int32_t absE = (e >= 0 ? e : -e);
+        int32_t maxStep;
+
+        if (absE > 500)         maxStep = 250;    // far away → blast fast
+        else if (absE > 200)    maxStep = 120;    // closing in → still fast
+        else if (absE > 100)    maxStep = 60;     // ±100 zone → slow down
+        else if (absE > 50)     maxStep = 25;     // ±50 zone → fine tune
+        else if (absE > 20)     maxStep = 10;     // ±20 zone → precision
+        else                    maxStep = 3;      // ±10 zone → rock steady
+
+        int32_t diff = U - lastU;
+        if (diff >  maxStep) U = lastU + maxStep;
+        if (diff < -maxStep) U = lastU - maxStep;
+
+        lastU = U;
+
         if (U == U_unsat)
             I = I_next;
 
@@ -130,7 +158,8 @@ void SetMotorSpeed(void)
         uint32_t avg_counts = (sum + 50u) / 100u; // rounded average (0..255)
 
         // Map 0..255 counts -> 0..95000 mV (matches Current_speed() expected input range)
-        uint32_t mv = (avg_counts * SPEED_SENSE_FS_MV + (SPEED_SENSE_FS_COUNTS / 2u)) / SPEED_SENSE_FS_COUNTS;
+        uint32_t mv = (avg_counts * 3300 + 127) / 255;
+
 
         int32_t rpm = Current_speed((int32_t)mv);
         if (rpm < 0) rpm = 0;

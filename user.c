@@ -60,20 +60,21 @@ static inline void Delay100us(void)
 
 void PI_Handler(void)
 {
-    // start conservative; raise kp first, then ki
-    const int32_t kp = 2;
-    const int32_t ki = 1;
+    // tighter tracking -> higher gains than before
+    const int32_t kp = 4;
+    const int32_t ki = 2;
 
     const int32_t uMin = 0;
     const int32_t uMax = (int32_t)PWM_DUTY_MAX;
 
-    const int32_t deadband = 10;     // RPM band that counts as "close enough"
-    const int32_t maxStep  = 80;     // duty change per update
+    // smaller deadband so it keeps correcting down to ~±15
+    const int32_t deadband = 5;
 
-    static int32_t lastU   = 0;
-    static int32_t pvFilt  = 0;      // filtered RPM
-    // I must be signed int32_t (global or static)
-    // volatile int32_t I = 0;
+    // let it correct faster (too small here looks like "stuck" with ~100 RPM error)
+    const int32_t maxStep  = 150;
+
+    static int32_t lastU  = 0;
+    static int32_t pvFilt = 0;
 
     if (++piCount >= PI_UPDATE_DIV)
     {
@@ -98,65 +99,45 @@ void PI_Handler(void)
         int32_t sp = (int32_t)sp_u;
         int32_t pv = (int32_t)pv_u;
 
-        // ----- PV FILTER (1st-order IIR) -----
-        // alpha = 1/8  -> smooths quantized RPM
-        pvFilt += (pv - pvFilt) >> 3;
+        // faster filter (less lag) -> better convergence
+        pvFilt += (pv - pvFilt) >> 2;   // alpha = 1/4
 
         int32_t e = sp - pvFilt;
-
-        // ----- DEADBAND -----
         if (e > -deadband && e < deadband) e = 0;
 
         int32_t p = kp * e;
 
-        // ----- CONDITIONAL INTEGRATION -----
-        // 1) bleed integrator when we're "close" to prevent slow hunting
-        if (e == 0)
-        {
-            I -= (I >> 4);   // ~1/16 leak per update
-        }
+        // integrate (always), but keep I so (p+I) stays in valid PWM range
+        int32_t I_cand = I + ki * e;
+        int32_t iLow   = uMin - p;
+        int32_t iHigh  = uMax - p;
+        if (I_cand < iLow)  I_cand = iLow;
+        if (I_cand > iHigh) I_cand = iHigh;
 
-        // 2) if output would be slew-limited, freeze integrator this cycle
-        // (prevents windup against the slew limiter)
-        int32_t U_noint = p + I;
-        if (U_noint < uMin) U_noint = uMin;
-        if (U_noint > uMax) U_noint = uMax;
+        // requested command (already in-range because of I clamp above)
+        int32_t U_req = p + I_cand;
+        if (U_req < uMin) U_req = uMin;
+        if (U_req > uMax) U_req = uMax;
 
-        if ((U_noint - lastU) >  maxStep || (U_noint - lastU) < -maxStep)
-        {
-            // freeze I (do nothing)
-        }
-        else
-        {
-            // integrate only when not rate-limited
-            int32_t I_cand = I + ki * e;
+        // slew-limit the actual command
+        int32_t U_act = U_req;
+        int32_t diff  = U_req - lastU;
+        if (diff >  maxStep) U_act = lastU + maxStep;
+        if (diff < -maxStep) U_act = lastU - maxStep;
+        if (U_act < uMin) U_act = uMin;
+        if (U_act > uMax) U_act = uMax;
 
-            // clamp I so U can stay in-range
-            if (I_cand < (uMin - p)) I_cand = (uMin - p);
-            if (I_cand > (uMax - p)) I_cand = (uMax - p);
+        // anti-windup vs slew: keep integrator consistent with what you ACTUALLY applied
+        // (prevents slow "hunting" / staying ~100 RPM off)
+        I = I_cand + (U_act - U_req);
 
-            I = I_cand;
-        }
-
-        // ----- COMMAND + CLAMP -----
-        int32_t U = p + I;
-        if (U < uMin) U = uMin;
-        if (U > uMax) U = uMax;
-
-        // ----- SLEW LIMITER -----
-        int32_t diff = U - lastU;
-        if (diff >  maxStep) U = lastU + maxStep;
-        if (diff < -maxStep) U = lastU - maxStep;
-
-        if (U < uMin) U = uMin;
-        if (U > uMax) U = uMax;
-
-        lastU = U;
-        MOT34_Speed_Set((uint32_t)U);
+        lastU = U_act;
+        MOT34_Speed_Set((uint32_t)U_act);
     }
 
     TIMER0_ICR_R = 0x01;
 }
+
 
 
 void SetMotorSpeed(void)

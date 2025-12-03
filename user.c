@@ -60,37 +60,30 @@ static inline void Delay100us(void)
 
 void PI_Handler(void)
 {
-    // tighter tracking -> higher gains than before
-    const int32_t kp = 4;
-    const int32_t ki = 2;
-
     const int32_t uMin = 0;
     const int32_t uMax = (int32_t)PWM_DUTY_MAX;
 
-    // smaller deadband so it keeps correcting down to ~±15
-    const int32_t deadband = 5;
-
-    // let it correct faster (too small here looks like "stuck" with ~100 RPM error)
-    const int32_t maxStep  = 150;
+    // lock-in hysteresis (won't engage until we've actually driven the motor a bit)
+    const int32_t lockEnter = 15;
+    const int32_t lockExit  = 30;
 
     static int32_t lastU  = 0;
     static int32_t pvFilt = 0;
+    static uint8_t locked = 0;
 
     if (++piCount >= PI_UPDATE_DIV)
     {
         piCount = 0;
 
         uint32_t sp_u, pv_u;
-        OS_Wait(&mutex);
         sp_u = targetMotorRPM;
         pv_u = estMotorRPM;
-        OS_Signal(&mutex);
-
         if (sp_u == 0)
         {
             I = 0;
             lastU = 0;
             pvFilt = 0;
+            locked = 0;
             MOT34_Speed_Set(0);
             TIMER0_ICR_R = 0x01;
             return;
@@ -99,36 +92,77 @@ void PI_Handler(void)
         int32_t sp = (int32_t)sp_u;
         int32_t pv = (int32_t)pv_u;
 
-        // faster filter (less lag) -> better convergence
+        // light smoothing to prevent estimator jitter from flipping sign each update
         pvFilt += (pv - pvFilt) >> 2;   // alpha = 1/4
 
-        int32_t e = sp - pvFilt;
-        if (e > -deadband && e < deadband) e = 0;
+        int32_t e_raw = sp - pvFilt;
+        int32_t ae    = (e_raw < 0) ? -e_raw : e_raw;
 
-        int32_t p = kp * e;
+        // lock band, but ONLY after we've actually applied some PWM (prevents "stuck at 0")
+        if (!locked)
+        {
+            if (lastU > 20 && ae <= lockEnter) locked = 1;
+        }
+        else
+        {
+            if (ae >= lockExit) locked = 0;
+        }
 
-        // integrate (always), but keep I so (p+I) stays in valid PWM range
-        int32_t I_cand = I + ki * e;
+        if (locked)
+        {
+            I = lastU;  // keep integrator consistent with held output
+            MOT34_Speed_Set((uint32_t)lastU);
+            TIMER0_ICR_R = 0x01;
+            return;
+        }
+
+        // ----- gains (mild near target to avoid ringing, still responsive far away) -----
+        int32_t kp, ki;
+        if      (ae >= 250) { kp = 4; ki = 1; }
+        else if (ae >= 120) { kp = 3; ki = 2; }
+        else                { kp = 2; ki = 2; }
+
+        int32_t p = kp * e_raw;
+
+        // ----- integrator step limit -----
+        int32_t dI = ki * e_raw;
+        int32_t dImax;
+        if      (ae >= 250) dImax = 120;
+        else if (ae >= 120) dImax = 80;
+        else if (ae >= 60)  dImax = 40;
+        else                dImax = 20;
+
+        if (dI >  dImax) dI =  dImax;
+        if (dI < -dImax) dI = -dImax;
+
+        // integrate and clamp so (p+I) stays in PWM range
+        int32_t I_cand = I + dI;
         int32_t iLow   = uMin - p;
         int32_t iHigh  = uMax - p;
         if (I_cand < iLow)  I_cand = iLow;
         if (I_cand > iHigh) I_cand = iHigh;
 
-        // requested command (already in-range because of I clamp above)
         int32_t U_req = p + I_cand;
         if (U_req < uMin) U_req = uMin;
         if (U_req > uMax) U_req = uMax;
 
-        // slew-limit the actual command
+        // ----- asymmetric slew: FAST UP, SLOW DOWN (prevents chopping to 0 on one bad sample) -----
+        int32_t stepUp, stepDn;
+        if      (ae >= 250) { stepUp = 400; stepDn = 120; }
+        else if (ae >= 120) { stepUp = 220; stepDn = 90;  }
+        else if (ae >= 60)  { stepUp = 120; stepDn = 50;  }
+        else                { stepUp = 40;  stepDn = 15;  }
+
         int32_t U_act = U_req;
         int32_t diff  = U_req - lastU;
-        if (diff >  maxStep) U_act = lastU + maxStep;
-        if (diff < -maxStep) U_act = lastU - maxStep;
+
+        if (diff >  stepUp) U_act = lastU + stepUp;
+        if (diff < -stepDn) U_act = lastU - stepDn;
+
         if (U_act < uMin) U_act = uMin;
         if (U_act > uMax) U_act = uMax;
 
-        // anti-windup vs slew: keep integrator consistent with what you ACTUALLY applied
-        // (prevents slow "hunting" / staying ~100 RPM off)
+        // anti-windup vs slew
         I = I_cand + (U_act - U_req);
 
         lastU = U_act;
@@ -137,6 +171,7 @@ void PI_Handler(void)
 
     TIMER0_ICR_R = 0x01;
 }
+
 
 
 
@@ -255,7 +290,7 @@ int main(void)
 
     // Now start the rest of the system
 
-    MOT34_Init(100000, 0);
+    MOT34_Init(MOT34_PERIOD, 0);
     MOT34_Forward();
     // MOT34_Speed_Set(2000); // ensure a valid nonzero command immediately
 

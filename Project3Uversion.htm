@@ -3,7 +3,7 @@
 <title>Static Call Graph - [.\Project3Uversion.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image .\Project3Uversion.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060422: Last Updated: Sun Nov 30 12:50:13 2025
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060422: Last Updated: Wed Dec 03 21:21:26 2025
 <BR><P>
 <H3>Maximum Stack Usage =        184 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -1568,13 +1568,11 @@ Global Symbols
 <BR><BR>[Called By]<UL><LI><a href="#[7f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SetMotorSpeed
 </UL>
 
-<P><STRONG><a name="[7e]"></a>InputControl</STRONG> (Thumb, 116 bytes, Stack size 0 bytes, user.o(i.InputControl))
+<P><STRONG><a name="[7e]"></a>InputControl</STRONG> (Thumb, 104 bytes, Stack size 0 bytes, user.o(i.InputControl))
 <BR><BR>[Stack]<UL><LI>Max Depth = 88 + Unknown Stack Size
 <LI>Call Chain = InputControl &rArr; atoi &rArr; strtol &rArr; _strtoul
 </UL>
 <BR>[Calls]<UL><LI><a href="#[b3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;atoi
-<LI><a href="#[bd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OS_Wait
-<LI><a href="#[be]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OS_Signal
 <LI><a href="#[a1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Delay1ms
 <LI><a href="#[9f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Read_Key
 </UL>
@@ -1655,8 +1653,8 @@ Global Symbols
 <BR>[Calls]<UL><LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OS_EnableInterrupts
 <LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OS_DisableInterrupts
 </UL>
-<BR>[Called By]<UL><LI><a href="#[80]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LCDControl
-<LI><a href="#[7e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;InputControl
+<BR>[Called By]<UL><LI><a href="#[7f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SetMotorSpeed
+<LI><a href="#[80]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LCDControl
 </UL>
 
 <P><STRONG><a name="[bf]"></a>OS_Sleep</STRONG> (Thumb, 16 bytes, Stack size 4 bytes, rtos.o(i.OS_Sleep))
@@ -1680,12 +1678,12 @@ Global Symbols
 <LI><a href="#[c8]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OS_EnableInterrupts
 <LI><a href="#[c4]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OS_DisableInterrupts
 </UL>
-<BR>[Called By]<UL><LI><a href="#[80]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LCDControl
-<LI><a href="#[7e]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;InputControl
+<BR>[Called By]<UL><LI><a href="#[7f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SetMotorSpeed
+<LI><a href="#[80]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LCDControl
 </UL>
 
-<P><STRONG><a name="[ca]"></a>PI_Handler</STRONG> (Thumb, 164 bytes, Stack size 32 bytes, user.o(i.PI_Handler))
-<BR><BR>[Stack]<UL><LI>Max Depth = 32<LI>Call Chain = PI_Handler
+<P><STRONG><a name="[ca]"></a>PI_Handler</STRONG> (Thumb, 508 bytes, Stack size 96 bytes, user.o(i.PI_Handler))
+<BR><BR>[Stack]<UL><LI>Max Depth = 96<LI>Call Chain = PI_Handler
 </UL>
 <BR>[Calls]<UL><LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MOT34_Speed_Set
 </UL>
@@ -1700,10 +1698,13 @@ Global Symbols
 <BR><BR>[Called By]<UL><LI><a href="#[c1]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OS_AddThreads
 </UL>
 
-<P><STRONG><a name="[7f]"></a>SetMotorSpeed</STRONG> (Thumb, 80 bytes, Stack size 0 bytes, user.o(i.SetMotorSpeed))
-<BR><BR>[Stack]<UL><LI>Max Depth = 24<LI>Call Chain = SetMotorSpeed &rArr; adcRead
+<P><STRONG><a name="[7f]"></a>SetMotorSpeed</STRONG> (Thumb, 144 bytes, Stack size 0 bytes, user.o(i.SetMotorSpeed))
+<BR><BR>[Stack]<UL><LI>Max Depth = 24 + Unknown Stack Size
+<LI>Call Chain = SetMotorSpeed &rArr; adcRead
 </UL>
 <BR>[Calls]<UL><LI><a href="#[cd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Current_speed
+<LI><a href="#[bd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OS_Wait
+<LI><a href="#[be]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OS_Signal
 <LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adcRead
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> user.o(i.main)
@@ -1712,7 +1713,7 @@ Global Symbols
 <BR>[Address Reference Count : 1]<UL><LI> startup_tm4c123.o(.text)
 </UL>
 <P><STRONG><a name="[20]"></a>TIMER0A_Handler</STRONG> (Thumb, 8 bytes, Stack size 8 bytes, rtos.o(i.TIMER0A_Handler))
-<BR><BR>[Stack]<UL><LI>Max Depth = 40<LI>Call Chain = TIMER0A_Handler &rArr; PI_Handler
+<BR><BR>[Stack]<UL><LI>Max Depth = 104<LI>Call Chain = TIMER0A_Handler &rArr; PI_Handler
 </UL>
 <BR>[Calls]<UL><LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PI_Handler
 </UL>
@@ -1732,7 +1733,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[7f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SetMotorSpeed
 </UL>
 
-<P><STRONG><a name="[99]"></a>main</STRONG> (Thumb, 98 bytes, Stack size 8 bytes, user.o(i.main))
+<P><STRONG><a name="[99]"></a>main</STRONG> (Thumb, 104 bytes, Stack size 8 bytes, user.o(i.main))
 <BR><BR>[Stack]<UL><LI>Max Depth = 32 + Unknown Stack Size
 <LI>Call Chain = main &rArr; OS_AddThreads
 </UL>

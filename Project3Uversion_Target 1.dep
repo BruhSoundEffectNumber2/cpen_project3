@@ -1,5 +1,5 @@
 Dependencies for Project 'Project3Uversion', Target 'Target 1': (DO NOT MODIFY !)
-F (.\adcSetup.c)(0x692CA80E)(--c99 -c --cpu Cortex-M4 -D__EVAL -g -O0 --apcs=interwork --split_sections -I ..\cpen_project3-I.\RTE\_Target_1-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123-D__UVISION_VERSION="523" -D_RTE_ -DTM4C123GH6PM-o .\adcsetup.o --omf_browse .\adcsetup.crf --depend .\adcsetup.d)
+F (.\adcSetup.c)(0x692E6929)(--c99 -c --cpu Cortex-M4 -D__EVAL -g -O0 --apcs=interwork --split_sections -I ..\cpen_project3-I.\RTE\_Target_1-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123-D__UVISION_VERSION="523" -D_RTE_ -DTM4C123GH6PM-o .\adcsetup.o --omf_browse .\adcsetup.crf --depend .\adcsetup.d)
 I (adcSetup.h)(0x692CA914)
 I (C:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123\tm4c123gh6pm.h)(0x551060BC)
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\core_cm4.h)(0x60D4BBD2)
@@ -14,8 +14,8 @@ F (.\ASCII_Conversions.s)(0x692B61DF)(--cpu Cortex-M4 --pd "__EVAL SETA 1" -g --
 F (.\Keypad.s)(0x692B8409)(--cpu Cortex-M4 --pd "__EVAL SETA 1" -g --apcs=interwork -I.\RTE\_Target_1-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123--pd "__UVISION_VERSION SETA 523" --pd "_RTE_ SETA 1" --pd "TM4C123GH6PM SETA 1"--list .\keypad.lst --xref -o .\keypad.o --depend .\keypad.d)
 F (.\LCD.s)(0x692CA91C)(--cpu Cortex-M4 --pd "__EVAL SETA 1" -g --apcs=interwork -I.\RTE\_Target_1-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123--pd "__UVISION_VERSION SETA 523" --pd "_RTE_ SETA 1" --pd "TM4C123GH6PM SETA 1"--list .\lcd.lst --xref -o .\lcd.o --depend .\lcd.d)
 F (.\osasm_V2.s)(0x692B61DF)(--cpu Cortex-M4 --pd "__EVAL SETA 1" -g --apcs=interwork -I.\RTE\_Target_1-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123--pd "__UVISION_VERSION SETA 523" --pd "_RTE_ SETA 1" --pd "TM4C123GH6PM SETA 1"--list .\osasm_v2.lst --xref -o .\osasm_v2.o --depend .\osasm_v2.d)
-F (.\pwmDriver.c)(0x692B84C5)(--c99 -c --cpu Cortex-M4 -D__EVAL -g -O0 --apcs=interwork --split_sections -I ..\cpen_project3-I.\RTE\_Target_1-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123-D__UVISION_VERSION="523" -D_RTE_ -DTM4C123GH6PM-o .\pwmdriver.o --omf_browse .\pwmdriver.crf --depend .\pwmdriver.d)
-I (pwmDriver.h)(0x692B6406)
+F (.\pwmDriver.c)(0x692F5221)(--c99 -c --cpu Cortex-M4 -D__EVAL -g -O0 --apcs=interwork --split_sections -I ..\cpen_project3-I.\RTE\_Target_1-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123-D__UVISION_VERSION="523" -D_RTE_ -DTM4C123GH6PM-o .\pwmdriver.o --omf_browse .\pwmdriver.crf --depend .\pwmdriver.d)
+I (pwmDriver.h)(0x692F522A)
 I (C:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123\TM4c123GH6PM.h)(0x551060BC)
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\core_cm4.h)(0x60D4BBD2)
 I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x57F6D9A8)
@@ -24,19 +24,19 @@ I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\cmsis_compiler.h)(0x60
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\cmsis_armcc.h)(0x60D4BBD2)
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\mpu_armv7.h)(0x60D4BBD2)
 I (C:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123\system_TM4C123.h)(0x51B76296)
-F (.\pwmDriver.h)(0x692B6406)()
+F (.\pwmDriver.h)(0x692F522A)()
 F (.\rtos.c)(0x692CA904)(--c99 -c --cpu Cortex-M4 -D__EVAL -g -O0 --apcs=interwork --split_sections -I ..\cpen_project3-I.\RTE\_Target_1-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123-D__UVISION_VERSION="523" -D_RTE_ -DTM4C123GH6PM-o .\rtos.o --omf_browse .\rtos.crf --depend .\rtos.d)
 I (rtos.h)(0x692CA7EB)
 I (tm4c123gh6pm_def.h)(0x692B61DF)
 I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x57F6D9A8)
 F (.\rtos.h)(0x692CA7EB)()
-F (.\user.c)(0x692CADFE)(--c99 -c --cpu Cortex-M4 -D__EVAL -g -O0 --apcs=interwork --split_sections -I ..\cpen_project3-I.\RTE\_Target_1-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123-D__UVISION_VERSION="523" -D_RTE_ -DTM4C123GH6PM-o .\user.o --omf_browse .\user.crf --depend .\user.d)
+F (.\user.c)(0x69311A50)(--c99 -c --cpu Cortex-M4 -D__EVAL -g -O0 --apcs=interwork --split_sections -I ..\cpen_project3-I.\RTE\_Target_1-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123-D__UVISION_VERSION="523" -D_RTE_ -DTM4C123GH6PM-o .\user.o --omf_browse .\user.crf --depend .\user.d)
 I (C:\Keil_v5\ARM\ARMCC\include\stdio.h)(0x57F6D9A8)
 I (C:\Keil_v5\ARM\ARMCC\include\stdlib.h)(0x57F6D9A8)
 I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x57F6D9A8)
 I (rtos.h)(0x692CA7EB)
 I (tm4c123gh6pm_def.h)(0x692B61DF)
-I (pwmDriver.h)(0x692B6406)
+I (pwmDriver.h)(0x692F522A)
 I (C:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123\TM4c123GH6PM.h)(0x551060BC)
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\core_cm4.h)(0x60D4BBD2)
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\cmsis_version.h)(0x60D4BBD2)
@@ -46,7 +46,7 @@ I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\mpu_armv7.h)(0x60D4BBD
 I (C:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123\system_TM4C123.h)(0x51B76296)
 I (adcSetup.h)(0x692CA914)
 I (C:\Keil_v5\ARM\ARMCC\include\time.h)(0x57F6D9A8)
-F (.\Voltage2RPM.c)(0x692B6644)(--c99 -c --cpu Cortex-M4 -D__EVAL -g -O0 --apcs=interwork --split_sections -I ..\cpen_project3-I.\RTE\_Target_1-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123-D__UVISION_VERSION="523" -D_RTE_ -DTM4C123GH6PM-o .\voltage2rpm.o --omf_browse .\voltage2rpm.crf --depend .\voltage2rpm.d)
+F (.\Voltage2RPM.c)(0x692E692A)(--c99 -c --cpu Cortex-M4 -D__EVAL -g -O0 --apcs=interwork --split_sections -I ..\cpen_project3-I.\RTE\_Target_1-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include-IC:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123-D__UVISION_VERSION="523" -D_RTE_ -DTM4C123GH6PM-o .\voltage2rpm.o --omf_browse .\voltage2rpm.crf --depend .\voltage2rpm.d)
 I (C:\Keil_v5\ARM\PACK\Keil\TM4C_DFP\1.1.0\Device\Include\TM4C123\tm4c123gh6pm.h)(0x551060BC)
 I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\5.8.0\CMSIS\Core\Include\core_cm4.h)(0x60D4BBD2)
 I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x57F6D9A8)

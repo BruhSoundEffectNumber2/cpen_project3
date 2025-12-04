@@ -34,6 +34,10 @@ volatile uint32_t piCount = 0;
 #define SPEED_SENSE_FS_MV 95000u   // what Current_speed() expects at full-scale
 #define SPEED_SENSE_FS_COUNTS 255u // 8-bit ADC full-scale
 int32_t I = 0;
+int32_t e_raw = 0;
+uint32_t ae = 0;
+int32_t U_act = 0;
+int32_t diff = 0;
 int32_t mutex = 1;
 char currentInput[5] = {0};
 
@@ -65,9 +69,9 @@ void PI_Handler(void)
 
     // lock-in hysteresis (won't engage until we've actually driven the motor a bit)
     const int32_t lockEnter = 15;
-    const int32_t lockExit  = 30;
+    const int32_t lockExit = 30;
 
-    static int32_t lastU  = 0;
+    static int32_t lastU = 0;
     static int32_t pvFilt = 0;
     static uint8_t locked = 0;
 
@@ -93,24 +97,26 @@ void PI_Handler(void)
         int32_t pv = (int32_t)pv_u;
 
         // light smoothing to prevent estimator jitter from flipping sign each update
-        pvFilt += (pv - pvFilt) >> 2;   // alpha = 1/4
+        pvFilt += (pv - pvFilt) >> 2; // alpha = 1/4
 
-        int32_t e_raw = sp - pvFilt;
-        int32_t ae    = (e_raw < 0) ? -e_raw : e_raw;
+        e_raw = sp - pvFilt;
+        ae = (e_raw < 0) ? -e_raw : e_raw;
 
         // lock band, but ONLY after we've actually applied some PWM (prevents "stuck at 0")
         if (!locked)
         {
-            if (lastU > 20 && ae <= lockEnter) locked = 1;
+            if (lastU > 20 && ae <= lockEnter)
+                locked = 1;
         }
         else
         {
-            if (ae >= lockExit) locked = 0;
+            if (ae >= lockExit)
+                locked = 0;
         }
 
         if (locked)
         {
-            I = lastU;  // keep integrator consistent with held output
+            I = lastU; // keep integrator consistent with held output
             MOT34_Speed_Set((uint32_t)lastU);
             TIMER0_ICR_R = 0x01;
             return;
@@ -118,49 +124,91 @@ void PI_Handler(void)
 
         // ----- gains (mild near target to avoid ringing, still responsive far away) -----
         int32_t kp, ki;
-        if      (ae >= 250) { kp = 4; ki = 1; }
-        else if (ae >= 120) { kp = 3; ki = 2; }
-        else                { kp = 2; ki = 2; }
+        if (ae >= 250)
+        {
+            kp = 4;
+            ki = 1;
+        }
+        else if (ae >= 120)
+        {
+            kp = 3;
+            ki = 2;
+        }
+        else
+        {
+            kp = 2;
+            ki = 2;
+        }
 
         int32_t p = kp * e_raw;
 
         // ----- integrator step limit -----
         int32_t dI = ki * e_raw;
         int32_t dImax;
-        if      (ae >= 250) dImax = 120;
-        else if (ae >= 120) dImax = 80;
-        else if (ae >= 60)  dImax = 40;
-        else                dImax = 20;
+        if (ae >= 250)
+            dImax = 120;
+        else if (ae >= 120)
+            dImax = 80;
+        else if (ae >= 60)
+            dImax = 40;
+        else
+            dImax = 20;
 
-        if (dI >  dImax) dI =  dImax;
-        if (dI < -dImax) dI = -dImax;
+        if (dI > dImax)
+            dI = dImax;
+        if (dI < -dImax)
+            dI = -dImax;
 
         // integrate and clamp so (p+I) stays in PWM range
         int32_t I_cand = I + dI;
-        int32_t iLow   = uMin - p;
-        int32_t iHigh  = uMax - p;
-        if (I_cand < iLow)  I_cand = iLow;
-        if (I_cand > iHigh) I_cand = iHigh;
+        int32_t iLow = uMin - p;
+        int32_t iHigh = uMax - p;
+        if (I_cand < iLow)
+            I_cand = iLow;
+        if (I_cand > iHigh)
+            I_cand = iHigh;
 
         int32_t U_req = p + I_cand;
-        if (U_req < uMin) U_req = uMin;
-        if (U_req > uMax) U_req = uMax;
+        if (U_req < uMin)
+            U_req = uMin;
+        if (U_req > uMax)
+            U_req = uMax;
 
         // ----- asymmetric slew: FAST UP, SLOW DOWN (prevents chopping to 0 on one bad sample) -----
         int32_t stepUp, stepDn;
-        if      (ae >= 250) { stepUp = 400; stepDn = 120; }
-        else if (ae >= 120) { stepUp = 220; stepDn = 90;  }
-        else if (ae >= 60)  { stepUp = 120; stepDn = 50;  }
-        else                { stepUp = 40;  stepDn = 15;  }
+        if (ae >= 250)
+        {
+            stepUp = 400;
+            stepDn = 120;
+        }
+        else if (ae >= 120)
+        {
+            stepUp = 220;
+            stepDn = 90;
+        }
+        else if (ae >= 60)
+        {
+            stepUp = 120;
+            stepDn = 50;
+        }
+        else
+        {
+            stepUp = 40;
+            stepDn = 15;
+        }
 
-        int32_t U_act = U_req;
-        int32_t diff  = U_req - lastU;
+        U_act = U_req;
+        diff = U_req - lastU;
 
-        if (diff >  stepUp) U_act = lastU + stepUp;
-        if (diff < -stepDn) U_act = lastU - stepDn;
+        if (diff > stepUp)
+            U_act = lastU + stepUp;
+        if (diff < -stepDn)
+            U_act = lastU - stepDn;
 
-        if (U_act < uMin) U_act = uMin;
-        if (U_act > uMax) U_act = uMax;
+        if (U_act < uMin)
+            U_act = uMin;
+        if (U_act > uMax)
+            U_act = uMax;
 
         // anti-windup vs slew
         I = I_cand + (U_act - U_req);
@@ -171,9 +219,6 @@ void PI_Handler(void)
 
     TIMER0_ICR_R = 0x01;
 }
-
-
-
 
 void SetMotorSpeed(void)
 {
@@ -212,6 +257,7 @@ void InputControl(void)
 {
     int counter = 0;
     currentInput[0] = '\0';
+    int pressed = 0;
 
     while (1)
     {
@@ -219,9 +265,9 @@ void InputControl(void)
         Read_Key();
         uint32_t test = Key_ASCII;
         unsigned char current = (unsigned char)(Key_ASCII & 0xFF);
-        if (current != 0x00)
+        if (current != 0x00 && !pressed)
         {
-            Key_ASCII = 0; // consume
+            pressed = 1;
 
             if ((current >= '0' && current <= '9') && counter < 4)
             {
@@ -244,6 +290,10 @@ void InputControl(void)
                 currentInput[0] = '\0';
             }
             // OS_Sleep(10);
+        }
+        else if (pressed)
+        {
+            pressed = 0;
         }
     }
 }

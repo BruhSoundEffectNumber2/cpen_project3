@@ -192,7 +192,7 @@ void SetMotorSpeed(void)
         uint32_t avg_counts = (sum + 50u) / 100u; // rounded average (0..255)
 
         // Map 0..255 counts -> 0..95000 mV (matches Current_speed() expected input range)
-        uint32_t mv = (avg_counts * 33000u + 127u) / 255u;
+        uint32_t mv = (avg_counts * 33000u + 127u) / 1000u;
 
         int32_t rpm = Current_speed((int32_t)mv);
         if (rpm < 0)

@@ -278,6 +278,16 @@ void InputControl(void)
             {
                 int val = atoi(currentInput);
 
+                // Clamping
+                if (val != 0 && val < 400)
+                {
+                    val = 400;
+                }
+                else if (val > 2400)
+                {
+                    val = 2400;
+                }
+
                 // I = 0;
                 targetMotorRPM = (uint32_t)val;
 

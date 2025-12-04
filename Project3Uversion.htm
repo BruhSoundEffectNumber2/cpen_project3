@@ -3,7 +3,7 @@
 <title>Static Call Graph - [.\Project3Uversion.axf]</title></head>
 <body><HR>
 <H1>Static Call Graph for image .\Project3Uversion.axf</H1><HR>
-<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060422: Last Updated: Wed Dec 03 21:21:26 2025
+<BR><P>#&#060CALLGRAPH&#062# ARM Linker, 5060422: Last Updated: Thu Dec 04 13:32:32 2025
 <BR><P>
 <H3>Maximum Stack Usage =        184 bytes + Unknown(Functions without stacksize, Cycles, Untraceable Function Pointers)</H3><H3>
 Call chain for Maximum Stack Depth:</H3>
@@ -1564,11 +1564,12 @@ Global Symbols
 <BR><BR>[Called By]<UL><LI><a href="#[c3]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OS_Init
 </UL>
 
-<P><STRONG><a name="[cd]"></a>Current_speed</STRONG> (Thumb, 26 bytes, Stack size 0 bytes, voltage2rpm.o(i.Current_speed))
+<P><STRONG><a name="[cc]"></a>Current_speed</STRONG> (Thumb, 26 bytes, Stack size 0 bytes, voltage2rpm.o(i.Current_speed))
 <BR><BR>[Called By]<UL><LI><a href="#[7f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SetMotorSpeed
+<LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PI_Handler
 </UL>
 
-<P><STRONG><a name="[7e]"></a>InputControl</STRONG> (Thumb, 104 bytes, Stack size 0 bytes, user.o(i.InputControl))
+<P><STRONG><a name="[7e]"></a>InputControl</STRONG> (Thumb, 136 bytes, Stack size 0 bytes, user.o(i.InputControl))
 <BR><BR>[Stack]<UL><LI>Max Depth = 88 + Unknown Stack Size
 <LI>Call Chain = InputControl &rArr; atoi &rArr; strtol &rArr; _strtoul
 </UL>
@@ -1604,7 +1605,7 @@ Global Symbols
 <BR>[Called By]<UL><LI><a href="#[99]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[cb]"></a>MOT34_Speed_Set</STRONG> (Thumb, 8 bytes, Stack size 0 bytes, pwmdriver.o(i.MOT34_Speed_Set))
+<P><STRONG><a name="[cd]"></a>MOT34_Speed_Set</STRONG> (Thumb, 8 bytes, Stack size 0 bytes, pwmdriver.o(i.MOT34_Speed_Set))
 <BR><BR>[Called By]<UL><LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PI_Handler
 </UL>
 
@@ -1682,10 +1683,12 @@ Global Symbols
 <LI><a href="#[80]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;LCDControl
 </UL>
 
-<P><STRONG><a name="[ca]"></a>PI_Handler</STRONG> (Thumb, 508 bytes, Stack size 96 bytes, user.o(i.PI_Handler))
-<BR><BR>[Stack]<UL><LI>Max Depth = 96<LI>Call Chain = PI_Handler
+<P><STRONG><a name="[ca]"></a>PI_Handler</STRONG> (Thumb, 438 bytes, Stack size 96 bytes, user.o(i.PI_Handler))
+<BR><BR>[Stack]<UL><LI>Max Depth = 120<LI>Call Chain = PI_Handler &rArr; adcRead
 </UL>
-<BR>[Calls]<UL><LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MOT34_Speed_Set
+<BR>[Calls]<UL><LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Current_speed
+<LI><a href="#[cd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;MOT34_Speed_Set
+<LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adcRead
 </UL>
 <BR>[Called By]<UL><LI><a href="#[20]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;TIMER0A_Handler
 </UL>
@@ -1702,10 +1705,10 @@ Global Symbols
 <BR><BR>[Stack]<UL><LI>Max Depth = 24 + Unknown Stack Size
 <LI>Call Chain = SetMotorSpeed &rArr; adcRead
 </UL>
-<BR>[Calls]<UL><LI><a href="#[cd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Current_speed
+<BR>[Calls]<UL><LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;Current_speed
 <LI><a href="#[bd]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OS_Wait
 <LI><a href="#[be]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;OS_Signal
-<LI><a href="#[cc]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adcRead
+<LI><a href="#[cb]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;adcRead
 </UL>
 <BR>[Address Reference Count : 1]<UL><LI> user.o(i.main)
 </UL>
@@ -1713,7 +1716,7 @@ Global Symbols
 <BR>[Address Reference Count : 1]<UL><LI> startup_tm4c123.o(.text)
 </UL>
 <P><STRONG><a name="[20]"></a>TIMER0A_Handler</STRONG> (Thumb, 8 bytes, Stack size 8 bytes, rtos.o(i.TIMER0A_Handler))
-<BR><BR>[Stack]<UL><LI>Max Depth = 104<LI>Call Chain = TIMER0A_Handler &rArr; PI_Handler
+<BR><BR>[Stack]<UL><LI>Max Depth = 128<LI>Call Chain = TIMER0A_Handler &rArr; PI_Handler &rArr; adcRead
 </UL>
 <BR>[Calls]<UL><LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PI_Handler
 </UL>
@@ -1727,10 +1730,11 @@ Global Symbols
 <BR><BR>[Called By]<UL><LI><a href="#[99]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;main
 </UL>
 
-<P><STRONG><a name="[cc]"></a>adcRead</STRONG> (Thumb, 176 bytes, Stack size 24 bytes, adcsetup.o(i.adcRead))
+<P><STRONG><a name="[cb]"></a>adcRead</STRONG> (Thumb, 176 bytes, Stack size 24 bytes, adcsetup.o(i.adcRead))
 <BR><BR>[Stack]<UL><LI>Max Depth = 24<LI>Call Chain = adcRead
 </UL>
 <BR>[Called By]<UL><LI><a href="#[7f]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;SetMotorSpeed
+<LI><a href="#[ca]">&gt;&gt;</a>&nbsp;&nbsp;&nbsp;PI_Handler
 </UL>
 
 <P><STRONG><a name="[99]"></a>main</STRONG> (Thumb, 104 bytes, Stack size 8 bytes, user.o(i.main))

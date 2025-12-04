@@ -64,30 +64,57 @@ static inline void Delay100us(void)
 
 void PI_Handler(void)
 {
+    static uint32_t sum = 0;
+    static uint32_t sampleCount = 0;
+
+    int32_t filt_rpm = 0;
     const int32_t uMin = 0;
     const int32_t uMax = (int32_t)PWM_DUTY_MAX;
 
-    // lock-in hysteresis (won't engage until we've actually driven the motor a bit)
-    const int32_t lockEnter = 15;
-    const int32_t lockExit = 30;
+    // accumulate ADC samples
+    sum += (uint32_t)adcRead();
+    sampleCount++;
 
-    static int32_t lastU = 0;
+    // previous PWM + filters + integrator
+    static int32_t lastU  = 0;
     static int32_t pvFilt = 0;
-    static uint8_t locked = 0;
+
+    const int32_t kp = 10;
+    const int32_t ki = 1;
+
+    // fixed slew limits (no fuzzy)
+    const int32_t stepUp = 200;
+    const int32_t stepDn = 80;
 
     if (++piCount >= PI_UPDATE_DIV)
     {
         piCount = 0;
 
-        uint32_t sp_u, pv_u;
-        sp_u = targetMotorRPM;
-        pv_u = estMotorRPM;
+        // average ADC (correct + stable)
+        uint32_t avg_counts = (sum + (sampleCount/2)) / sampleCount;
+        sum = 0;
+        sampleCount = 0;
+
+        // convert ADC 0..255 to mV (0..33,000)
+        uint32_t mv = (avg_counts * 33000u + 127u) / 1000u;
+
+        int32_t rpm = Current_speed((int32_t)mv);
+        if (rpm < 0) rpm = 0;
+
+        // simple LPF
+        filt_rpm += (rpm - filt_rpm) >> 2;
+
+        avgMotorRPM = (uint32_t)rpm;
+        estMotorRPM = (uint32_t)rpm;
+
+        uint32_t sp_u = targetMotorRPM;
+        uint32_t pv_u = estMotorRPM;
+
         if (sp_u == 0)
         {
             I = 0;
             lastU = 0;
             pvFilt = 0;
-            locked = 0;
             MOT34_Speed_Set(0);
             TIMER0_ICR_R = 0x01;
             return;
@@ -96,121 +123,46 @@ void PI_Handler(void)
         int32_t sp = (int32_t)sp_u;
         int32_t pv = (int32_t)pv_u;
 
-        // light smoothing to prevent estimator jitter from flipping sign each update
-        pvFilt += (pv - pvFilt) >> 2; // alpha = 1/4
+        // filter estimated rpm
+        pvFilt += (pv - pvFilt) >> 2;
 
-        e_raw = sp - pvFilt;
-        ae = (e_raw < 0) ? -e_raw : e_raw;
+        // error
+        int32_t e = sp - pvFilt;
 
-        // lock band, but ONLY after we've actually applied some PWM (prevents "stuck at 0")
-        if (!locked)
-        {
-            if (lastU > 20 && ae <= lockEnter)
-                locked = 1;
-        }
-        else
-        {
-            if (ae >= lockExit)
-                locked = 0;
-        }
+        // P and I
+        int32_t p  = kp * e;
+        int32_t dI = ki * e;
 
-        if (locked)
-        {
-            I = lastU; // keep integrator consistent with held output
-            MOT34_Speed_Set((uint32_t)lastU);
-            TIMER0_ICR_R = 0x01;
-            return;
-        }
+        // limit I step so it does not explode
+        if (dI > 200)  dI = 200;
+        if (dI < -200) dI = -200;
 
-        // ----- gains (mild near target to avoid ringing, still responsive far away) -----
-        int32_t kp, ki;
-        if (ae >= 250)
-        {
-            kp = 4;
-            ki = 1;
-        }
-        else if (ae >= 120)
-        {
-            kp = 3;
-            ki = 2;
-        }
-        else
-        {
-            kp = 2;
-            ki = 2;
-        }
-
-        int32_t p = kp * e_raw;
-
-        // ----- integrator step limit -----
-        int32_t dI = ki * e_raw;
-        int32_t dImax;
-        if (ae >= 250)
-            dImax = 120;
-        else if (ae >= 120)
-            dImax = 80;
-        else if (ae >= 60)
-            dImax = 40;
-        else
-            dImax = 20;
-
-        if (dI > dImax)
-            dI = dImax;
-        if (dI < -dImax)
-            dI = -dImax;
-
-        // integrate and clamp so (p+I) stays in PWM range
         int32_t I_cand = I + dI;
-        int32_t iLow = uMin - p;
+
+        // clamp integrator so (p + I) stays in PWM range
+        int32_t iLow  = uMin - p;
         int32_t iHigh = uMax - p;
-        if (I_cand < iLow)
-            I_cand = iLow;
-        if (I_cand > iHigh)
-            I_cand = iHigh;
 
+        if (I_cand < iLow)  I_cand = iLow;
+        if (I_cand > iHigh) I_cand = iHigh;
+
+        // raw PI output
         int32_t U_req = p + I_cand;
-        if (U_req < uMin)
-            U_req = uMin;
-        if (U_req > uMax)
-            U_req = uMax;
 
-        // ----- asymmetric slew: FAST UP, SLOW DOWN (prevents chopping to 0 on one bad sample) -----
-        int32_t stepUp, stepDn;
-        if (ae >= 250)
-        {
-            stepUp = 400;
-            stepDn = 120;
-        }
-        else if (ae >= 120)
-        {
-            stepUp = 220;
-            stepDn = 90;
-        }
-        else if (ae >= 60)
-        {
-            stepUp = 120;
-            stepDn = 50;
-        }
-        else
-        {
-            stepUp = 40;
-            stepDn = 15;
-        }
+        if (U_req < uMin) U_req = uMin;
+        if (U_req > uMax) U_req = uMax;
 
-        U_act = U_req;
-        diff = U_req - lastU;
+        // slew limit — always fixed
+        int32_t diff = U_req - lastU;
+        int32_t U_act = U_req;
 
-        if (diff > stepUp)
-            U_act = lastU + stepUp;
-        if (diff < -stepDn)
-            U_act = lastU - stepDn;
+        if (diff >  stepUp) U_act = lastU + stepUp;
+        if (diff < -stepDn) U_act = lastU - stepDn;
 
-        if (U_act < uMin)
-            U_act = uMin;
-        if (U_act > uMax)
-            U_act = uMax;
+        if (U_act < uMin) U_act = uMin;
+        if (U_act > uMax) U_act = uMax;
 
-        // anti-windup vs slew
+        // anti-windup correction
         I = I_cand + (U_act - U_req);
 
         lastU = U_act;
@@ -219,6 +171,8 @@ void PI_Handler(void)
 
     TIMER0_ICR_R = 0x01;
 }
+
+
 
 void SetMotorSpeed(void)
 {
